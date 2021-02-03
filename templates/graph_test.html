@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% block content %}	
+
+
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<div id="fuck" style="width:100%; height:400px;"></div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const chart = Highcharts.chart('fuck', {
+          chart: {
+              type: '{{chart_type}}'
+          },
+          title: {
+              text: '{{title}}'
+          },
+
+          subtitle: {
+              text: '{{subtitle}}'
+          },
+         
+          yAxis: {
+              title: {
+                  text: 'Fruit eaten'
+              }
+		  },
+		  xAxis: {
+                categories: {{municipality|tojson }}
+            },
+
+
+          series: [{
+              name: 'population',
+              data: {{population|tojson }}
+          }]
+      });
+	},
+	Highcharts.setOptions({
+	lang: {
+  	thousandsSep: ','
+  }}));
+</script>
+
+
+{% endblock %} 
+
+
+
