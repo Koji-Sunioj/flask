@@ -169,7 +169,7 @@ def graph(chartID = 'population'):
 	series = [{"name": columns[1], "data": population}]
 	chart = {"renderTo": chartID, "type": 'column', "height": 500}
 	title = {"text": 'Top 10 cities in Finland ranked by population'}
-	subtitle = {"text": 'from stat.fi'}
+	subtitle = {"text": 'hey'}
 	xAxis = {"categories": municipality}
 	yAxis = {"title": {"text": columns[1]}}
 	return render_template('graph.html', chartID=chartID, chart=chart, series=series, title=title, xAxis=xAxis, yAxis=yAxis,subtitle=subtitle)
