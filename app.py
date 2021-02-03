@@ -17,7 +17,7 @@ from io import BytesIO
 from datetime import datetime,date
 from flask import render_template
 
-con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
+con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
 
 #export FLASK_ENV=development
 
