@@ -172,5 +172,6 @@ def covid_frame(var_last):
 	return update_values
 	
 
+asdasd
 
 
