@@ -1,0 +1,79 @@
+
+{%include 'weather.html'%}
+<div class="container">
+
+
+    {% if table  %}
+  
+    <div class="card" style="width: 100%;">
+        <div class="card-body">
+          <h3 class="card-title">{{server_city}}</h5>
+          <p class="card-text">{{summary['temperature']}} C°, {{summary['summary']| title}}.  {% if summary['wind_chill'] %} Feels like {{summary['wind_chill']}} C°.{% endif %}</p>
+          <p class="card-text">Forecast updated {{summary['forecast_time']}}</p>
+          <p class="card-text">Sun rises at {{summary['sunrise']}} and sets at {{summary['sunset']}}. Day length is {{summary['hours']}} hours and {{summary['minutes']}} minutes.</p>
+        </div>
+      </div>
+    <br>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+<div id="fuck" style="width:100%; height:400px;" class="card"></div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () 
+    {const chart = Highcharts.chart('fuck', 
+    {chart: {type: 'line'},
+    title: {text: '{{dates|length}} day forecast for {{city|title}}'},
+    subtitle: {text: 'Source: WorldClimate.com'},
+    xAxis: {categories: {{dates|tojson }}},
+    yAxis: {title: {text: 'Temperature (°C)'}},
+    plotOptions: {line: {dataLabels: {enabled: true},enableMouseTracking: true}},
+    series: [{name: 'Daily max &#8451',data: {{maxt|tojson }}}, {name: 'Daily min &#8451',data: {{mint|tojson }}}]})
+    
+    },
+    
+    Highcharts.setOptions({
+    colors: [ '#FA8072','#87CEFA']
+})
+
+);
+</script>
+    <br>
+    <table class="table table-bordered" >
+        <tr>
+            <th>date</th>
+            <th>max C°</th>
+            <th>min C°</th>
+            <th>rain (mm)</th>
+            <th>clouds (%)</th>
+            <th>humidity(%)</th>
+            <th>wind (m/s)</th>
+            <th>gust (m/s)</th>
+            <th>visibility (km)</th>
+            <th>summary</th>
+        </tr>
+    {% for i in table %}    
+        <tr>
+            <td>{{i[0]}}</td>
+            <td>{{i[1]}}</td>
+            <td>{{i[2]}}</td>
+            <td>{{i[3]}}</td>
+            <td>{{i[4]}}</td>
+            <td>{{i[6]}}</td>
+            <td>{{i[7]}}</td>
+            <td>{{i[8]}}</td>
+            <td>{{i[9]}}</td>
+            <td>{{i[5]}}</td>
+            
+        </tr>
+    {% endfor %}
+    
+    </table>
+  
+  
+  {% else %}
+
+    <div class="alert alert-warning row justify-content-md-center md-4" role="warning">
+        <h3>{{message}}</h3>
+    </div>
+
+  {% endif %}
+</div>

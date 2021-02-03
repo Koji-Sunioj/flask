@@ -1,0 +1,24 @@
+
+{% extends "layout.html" %}
+  {% block content %}
+ 
+  <h1 style="color: blue">Weather in Kerava for next 24 hours {{time}}</h1>
+    <div class="container">
+        <br>
+    <table class="table table-bordered" >
+        <tr>
+            <th scope="col">time</th>
+            <th scope="col">temperature</th>  
+            <th scope="col">rain</th>
+        </tr>
+    {% for i,c,s in stuff %}    
+        <tr>
+            <td>{{s}}</td>
+            <td>{{i}}</td>
+            <td>{{c}}</td>
+        </tr>
+    {% endfor %}
+    
+    </table>
+</div>
+{% endblock %}  
