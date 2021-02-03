@@ -1,5 +1,5 @@
 import pymysql
-con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
+con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
 
 def covid_today():
 	con.connect()
