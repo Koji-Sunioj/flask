@@ -1,5 +1,5 @@
 import pymysql
-con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
+con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 
 def covid_today():
 	con.connect()
@@ -100,3 +100,23 @@ def top_10_pop():
 	municipality = [i[0] for i in rows[:10]]
 	population = [int(i[1]) for i in rows[:10]]
 	return columns,municipality,population
+
+def check_user(email_username,password):
+	select_main = con.cursor()
+	select_main.callproc('check_email_password',(email_username,password))
+	rows = select_main.fetchall()
+	con.commit()
+	return rows
+
+def check_new_user(username):
+	select_main = con.cursor()
+	select_main.callproc('check_new_user',(username,))
+	rows = select_main.fetchall()
+	con.commit()
+	return rows
+
+def create_new_user(username,email,password):
+	insert_main = con.cursor()
+	insert_main.callproc('create_new_user',(username,email,password))
+	con.commit()
+	
