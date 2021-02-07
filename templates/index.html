@@ -2,23 +2,15 @@
 {% extends "layout.html" %}
   {% block content %}
  
-  <h1 style="color: blue">Weather in Kerava for next 24 hours {{time}}</h1>
-    <div class="container">
-        <br>
-    <table class="table table-bordered" >
-        <tr>
-            <th scope="col">time</th>
-            <th scope="col">temperature</th>  
-            <th scope="col">rain</th>
-        </tr>
-    {% for i,c,s in stuff %}    
-        <tr>
-            <td>{{s}}</td>
-            <td>{{i}}</td>
-            <td>{{c}}</td>
-        </tr>
-    {% endfor %}
+  {% if username  %}
+
+  
+
+    <div class="col-4 offset-4" style="margin-top: 20px;">
+        <h1>Hey {{username}}</h1>
+       <p>This is an experimental flask template for developing website components.</p>
+       <p class="alert alert-success" role="alert">{{message}}</p>
+    </div>
+    {% endif%}
     
-    </table>
-</div>
 {% endblock %}  
