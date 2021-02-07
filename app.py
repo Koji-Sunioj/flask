@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from flask import Flask, redirect, url_for, request,json
+from flask import Flask, redirect, url_for, request,json,session,render_template
 import re
-from functions import weather_local,covid_frame,test_graph,get_weather
+from functions import covid_frame,test_graph,get_weather
 import db_functions
 import matplotlib.pyplot as plt
 import datetime
@@ -15,13 +15,14 @@ import re
 import pymysql
 from io import BytesIO
 from datetime import datetime,date
-from flask import render_template
 
 con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 
 #export FLASK_ENV=development
 
 app = Flask(__name__)
+app.secret_key = 'any random string'
+
 
 @app.context_processor
 def crud_component():
@@ -131,8 +132,7 @@ def covid_request():
 
 @app.route("/")
 def index():
-	a,b,c = weather_local()
-	return render_template("index.html", stuff = zip(a,b,c))
+	return render_template("index.html")
 	
 @app.route("/pops")
 def db_load_pop():
@@ -155,6 +155,54 @@ def db_load_pop():
 @app.context_processor
 def inject_now():
 	return {'now': datetime.now()}
+	
+	
+@app.route('/login/', methods = ['POST', 'GET'])
+def login_page():
+	if request.method == 'POST':
+		email_username = request.form['email_username']
+		password = request.form['password']
+		data = db_functions.check_user(email_username,password)
+		if len(data) == 0:
+			error_message = 'wrong username and password!'
+			return render_template('login.html', error_message=error_message)
+		else:
+			username = data[0][0]
+			email = data[0][1]
+			session['username'] = username
+			message = 'succesfully logged in!'
+			return render_template('index.html',username=username,message=message)
+	return render_template('login.html')
+
+@app.route('/create_profile/', methods = ['POST', 'GET'])
+def create_profile():
+	if request.method == 'POST':
+		checked = [i == '' for i in request.form.values()]
+		if any(checked) == True:
+			error_message = 'please fill all the fields.'
+			return render_template('create_profile.html',error_message=error_message)
+		else:
+			email = request.form['email']
+			username = request.form['username']
+			password = request.form['password']
+			data = db_functions.check_new_user(username)
+			if data:
+				error_message = 'that username is taken. please use a different one.'
+				return render_template('create_profile.html',error_message=error_message)
+			elif request.form['password'] != request.form['password_confirm']:
+				error_message = 'passwords do not match.'
+				return render_template('create_profile.html',error_message=error_message)
+			else:
+				db_functions.create_new_user(username,email,password)
+				message = 'username {} was succesfully created. now logged in!'.format(username)
+				session['username'] = username
+				return render_template('index.html',username=username,message=message)
+	return render_template('create_profile.html')
+
+@app.route('/logout/')
+def logout():
+	session.pop('username', None)
+	return redirect(url_for('index'))
 
 @app.template_filter()
 def thousandsFormat(value):

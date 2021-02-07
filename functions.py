@@ -12,6 +12,7 @@ con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 from datetime import datetime,date
 
 
+
 def test_graph(data):
 	graph = pygal.Line()
 	graph.title = data['name']
@@ -58,27 +59,6 @@ def get_weather(city):
 	return table,summary,server_city,maxt,mint,dates
 	
 	
-
-def weather_local():
-	ilma = pd.read_html('https://www.ilmatieteenlaitos.fi/saa/Kerava')
-	df = ilma[1]
-	
-	rain = list(df[df.columns[-1]])
-	temp = list(df[df.columns[2]])
-	time = list(df[df.columns[0]])
-
-	rain_fix = []
-	temp_fix = []
-
-	for mm,celc,kello in zip(rain,temp,time):
-		rain_fix.append(float(mm.split(' ')[1].replace(',','.')))
-		temp_fix.append(int(re.findall('\d',celc)[0]))
-	
-	a = temp_fix
-	b = rain_fix
-	c = time
-	
-	return a,b,c
 	
 def covid_frame(var_last):
 	#call server to create dataframe, index from last db date onwards
