@@ -8,8 +8,9 @@ import pygal
 import pymysql
 import pycountry_convert as pc
 import db_functions
-con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
+con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 from datetime import datetime,date
+
 
 
 def test_graph(data):
@@ -23,7 +24,7 @@ def test_graph(data):
 	
 def get_weather(city):
 	#json requests
-	url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/weatherdata/forecast?aggregateHours=24&combinationMethod=aggregate&contentType=json&unitGroup=metric&locationMode=single&key=HIDDEN&dataElements=default&locations={}'.format(city)
+	url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/weatherdata/forecast?aggregateHours=24&combinationMethod=aggregate&contentType=json&unitGroup=metric&locationMode=single&key=NFL5M6IWKEWK1CTBV54KLQ9JR&dataElements=default&locations={}'.format(city)
 	response = requests.get(url)
 	data = response.json()
 	print(str(data['remainingCost']) + ' server requests remaining today')
@@ -58,27 +59,6 @@ def get_weather(city):
 	return table,summary,server_city,maxt,mint,dates
 	
 	
-
-def weather_local():
-	ilma = pd.read_html('https://www.ilmatieteenlaitos.fi/saa/Kerava')
-	df = ilma[1]
-	
-	rain = list(df[df.columns[-1]])
-	temp = list(df[df.columns[2]])
-	time = list(df[df.columns[0]])
-
-	rain_fix = []
-	temp_fix = []
-
-	for mm,celc,kello in zip(rain,temp,time):
-		rain_fix.append(float(mm.split(' ')[1].replace(',','.')))
-		temp_fix.append(int(re.findall('\d',celc)[0]))
-	
-	a = temp_fix
-	b = rain_fix
-	c = time
-	
-	return a,b,c
 	
 def covid_frame(var_last):
 	#call server to create dataframe, index from last db date onwards
