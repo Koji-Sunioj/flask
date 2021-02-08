@@ -1,16 +1,42 @@
 
 {% extends "layout.html" %}
-  {% block content %}
- 
-  {% if username  %}
+{% block content %}
+<style>
+    tr { line-height: 50px; }
+    h1 {margin-top: 20px;}
+</style>
 
-  
-
-    <div class="col-4 offset-4" style="margin-top: 20px;">
-        <h1>Hey {{username}}</h1>
-       <p>This is an experimental flask template for developing website components.</p>
-       <p class="alert alert-success" role="alert">{{message}}</p>
-    </div>
-    {% endif%}
+{% if message  %}
+  <div class="col-4 offset-4" style="margin-top: 20px;">
+    <p class="alert alert-success" role="alert">{{message}}</p>
+  </div>
+{% endif%}
     
+<h1 style="color: blue; text-align:center">{{title}}</h1>
+  <div class="container">
+    <br>
+    <table class="table table-bordered"  id='fuck_tuusula'>
+    <tr>
+      {% for col in framer.columns %}    
+        <th scope="col">{{col}}</th>  
+      {% endfor %}
+    </tr> 
+      {% for i in framer.values %}    
+    <tr>
+      <td>{{i[0]}}</td>  
+        {% if i[1].strftime('%d')|int == 8  %}
+          <td style="color: blue;">{{i[1].strftime('%d')|int}}</td> 
+        {% else %}
+          <td>{{i[1].strftime('%d')|int}}</td> 
+        {% endif%}   
+        <td>{{i[2].strftime('%d')|int}}</td> 
+        <td>{{i[3].strftime('%d')|int}}</td> 
+        <td>{{i[4].strftime('%d')|int}}</td>
+        <td>{{i[5].strftime('%d')|int}}</td>
+        <td>{{i[6].strftime('%d')|int}}</td>
+        <td>{{i[7].strftime('%d')|int}}</td>
+    </tr>
+        {% endfor %}
+    </table>
+  </div>
 {% endblock %}  
