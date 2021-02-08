@@ -9,7 +9,7 @@ import pymysql
 import pycountry_convert as pc
 import db_functions
 import calendar
-con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
+con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
 from datetime import datetime,date,timedelta
 
 
@@ -38,7 +38,7 @@ def make_calendar():
 
 def get_weather(city):
 	#json requests
-	url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/weatherdata/forecast?aggregateHours=24&combinationMethod=aggregate&contentType=json&unitGroup=metric&locationMode=single&key=NFL5M6IWKEWK1CTBV54KLQ9JR&dataElements=default&locations={}'.format(city)
+	url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/weatherdata/forecast?aggregateHours=24&combinationMethod=aggregate&contentType=json&unitGroup=metric&locationMode=single&key=HIDDEN&dataElements=default&locations={}'.format(city)
 	response = requests.get(url)
 	data = response.json()
 	print(str(data['remainingCost']) + ' server requests remaining today')
