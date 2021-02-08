@@ -8,9 +8,9 @@ import pygal
 import pymysql
 import pycountry_convert as pc
 import db_functions
+import calendar
 con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
-from datetime import datetime,date
-
+from datetime import datetime,date,timedelta
 
 
 def test_graph(data):
@@ -22,6 +22,20 @@ def test_graph(data):
 	return graph_data
 	
 	
+
+def make_calendar():
+	stamp = pd.to_datetime(datetime.now())
+	stamp_ranger = pd.date_range(start='{}/1/{}'.format(stamp.month,stamp.year), end='{}/{}/{}'.format(stamp.month,stamp.days_in_month,stamp.year))
+	framer = pd.DataFrame(stamp_ranger.weekofyear.unique(),columns=['week'])
+	framer['year'] =  [stamp_ranger.year.unique().values[0] for i in framer.values ]
+	new_stamper = pd.to_datetime(framer.week.astype(str)+'-'+framer.year.astype(str)+'-1' ,format='%V-%G-%u')
+	calender_list = [i + timedelta(days=int(s)) for s in np.arange(0,7) for i in new_stamper]
+	calender_list.sort()
+	framer = pd.DataFrame(np.array(calender_list).reshape(len(framer),7),index = framer['week'])
+	framer.columns = [ calendar.day_name[i] for i in framer.columns]
+	title = stamp.strftime('%B %Y')
+	return title,framer.reset_index()
+
 def get_weather(city):
 	#json requests
 	url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/weatherdata/forecast?aggregateHours=24&combinationMethod=aggregate&contentType=json&unitGroup=metric&locationMode=single&key=NFL5M6IWKEWK1CTBV54KLQ9JR&dataElements=default&locations={}'.format(city)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, redirect, url_for, request,json,session,render_template
 import re
-from functions import covid_frame,test_graph,get_weather
+from functions import covid_frame,test_graph,get_weather,make_calendar
 import db_functions
 import matplotlib.pyplot as plt
 import datetime
@@ -132,7 +132,9 @@ def covid_request():
 
 @app.route("/")
 def index():
-	return render_template("index.html")
+	title,framer = make_calendar()
+	print(datetime.now())
+	return render_template("index.html",framer=framer,title=title)
 	
 @app.route("/pops")
 def db_load_pop():
@@ -170,8 +172,9 @@ def login_page():
 			username = data[0][0]
 			email = data[0][1]
 			session['username'] = username
-			message = 'succesfully logged in!'
-			return render_template('index.html',username=username,message=message)
+			message = '{} succesfully logged in!'.format(username)
+			title,framer = make_calendar() 
+			return render_template('index.html',message=message,framer=framer,title=title)
 	return render_template('login.html')
 
 @app.route('/create_profile/', methods = ['POST', 'GET'])
@@ -194,15 +197,19 @@ def create_profile():
 				return render_template('create_profile.html',error_message=error_message)
 			else:
 				db_functions.create_new_user(username,email,password)
+				title,framer = make_calendar()
 				message = 'username {} was succesfully created. now logged in!'.format(username)
 				session['username'] = username
-				return render_template('index.html',username=username,message=message)
+				return render_template('index.html',message=message,title=title,framer=framer)
 	return render_template('create_profile.html')
 
 @app.route('/logout/')
 def logout():
+	username = session['username']
 	session.pop('username', None)
-	return redirect(url_for('index'))
+	message = 'username {} was succesfully logged out!'.format(username)
+	title,framer = make_calendar()
+	return render_template('index.html',message=message,framer=framer,title=title)
 
 @app.template_filter()
 def thousandsFormat(value):
