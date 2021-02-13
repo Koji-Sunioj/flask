@@ -9,22 +9,31 @@
         <title>Index</title>
       </head>
       <style>
-      table, th, td {
+      table, th, tbody {
         border: 1px solid black;
+        text-align: center;
       }
-      
+      nav { border: 1px solid grey};
+      form.border {width: 70%; padding: 20px; margin:auto; background-color:#f5f5f5;}
+      table { background-color: white;}
+      h1,h2 {margin-top: 20px; color: white;text-align:center; padding-bottom: 10px;}
+      #weather_input{padding-top: 20px;}
+      #calendar_button{text-decoration: none; color: black;box-sizing: border-box; padding: 0px; width: 100%;}
+  
       </style>
-  <body>
-    
-    <nav class="navbar navbar-light bg-light">
+      <body   style="background-image: url({{ url_for('static', filename='cover.png') }});background-repeat: no-repeat;  -webkit-background-size: cover;
+      -moz-background-size: cover;
+      background-size: cover;
+      -o-background-size: cover; background-attachment: fixed;">
+  
+    <nav class="navbar  navbar-light bg-light">
       <a class="navbar-brand" href="{{ url_for('index') }}">Home</a>
+      <a class="navbar-brand" href="{{ url_for('home_calendar') }}">Calendar</a>
       <a class="navbar-brand" href="{{ url_for('enter_city') }}">Finnish Weather</a>
       <a class="navbar-brand" href="{{ url_for('covid_request') }}">Coronavirus</a>
       <a class="navbar-brand" href="{{ url_for('db_load_pop') }}">Demographics</a>
       <a class="navbar-brand" href="{{ url_for('crud') }}">Social Media Blog</a>
       <a class="navbar-brand" href="{{ url_for('graph') }}">Graph</a>
-      <a>{{ now.strftime("%Y-%m-%d %H:%M") }}</a>
-      
       {% if session['username'] %}
       <a class="navbar-brand">Hello {{session['username']}}</a>
       <a class="navbar-brand" href="{{ url_for('logout') }}">Logout</a>
@@ -32,14 +41,21 @@
       <a class="navbar-brand">Hello guest</a>
       <a class="navbar-brand" href="{{ url_for('login_page') }}">Login</a>
       {% endif %}
-
+      <a >{{ now.strftime("%Y-%m-%d %H:%M") }}</a>
       
     </nav>
+
     
     
     <div class="container">
-    <div id="content">{% block content %}{% endblock %}</div>
-  </div>
+     <div id="content">
+       {% block content %}
+       {% endblock %}
+     </div>
+    </div>
+
   </body>
 </html>
+
+
 

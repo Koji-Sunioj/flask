@@ -1,42 +1,44 @@
 
 {% extends "layout.html" %}
 {% block content %}
-<style>
-    tr { line-height: 50px; }
-    h1 {margin-top: 20px;}
-</style>
+
+{% if social_header %}
+
+<div class="row" style="padding-top: 20px; ">
+  
+  
+
+<div class="card col-4 offset-1"  style="width: 18rem;">
+  <a href="{{ url_for('crud')}}" style="text-align: center; color:blue; padding-top:20px; margin: 0px; " >Latest social media post</a>
+  <div class="card-body">
+    <h5 class="card-title">{{social_header[0][0]}}</h5>
+    <p class="card-text">{{social_header[0][1]}}.</p>
+    <h6 class="card-subtitle mb-2 text-muted">{{social_header[0][3]}} on {{social_header[0][2]}}.</h6>
+  </div>
+</div>
+
+
+<div class="card col-4 offset-1"  style="width: 18rem;">
+  <a href="{{url_for('weather_city',city=summary['home_town'] )}}" style="text-align: center; color:blue; padding-top:20px; margin: 0px;">Current conditions in {{summary['home_town']}} </a>
+  <div class="card-body">
+    <h5 class="card-title">{{summary['temperature']}} {% if summary['wind_chill'] %} C°, Feels like {{summary['wind_chill']}} C°.{% endif %}</h5>
+    <p class="card-text">{{summary['summary']}}</p>
+    <h6 class="card-subtitle mb-2 text-muted">updated on {{summary['forecast_time']}}.</h6>
+    
+  </div>
+</div>
+</div>
+</div>
+
+{% endif%}
+  
 
 {% if message  %}
   <div class="col-4 offset-4" style="margin-top: 20px;">
     <p class="alert alert-success" role="alert">{{message}}</p>
   </div>
-{% endif%}
+  {% endif%}
+  
+  
     
-<h1 style="color: blue; text-align:center">{{title}}</h1>
-  <div class="container">
-    <br>
-    <table class="table table-bordered"  id='fuck_tuusula'>
-    <tr>
-      {% for col in framer.columns %}    
-        <th scope="col">{{col}}</th>  
-      {% endfor %}
-    </tr> 
-      {% for i in framer.values %}    
-    <tr>
-      <td>{{i[0]}}</td>  
-        {% if i[1].strftime('%d')|int == 8  %}
-          <td style="color: blue;">{{i[1].strftime('%d')|int}}</td> 
-        {% else %}
-          <td>{{i[1].strftime('%d')|int}}</td> 
-        {% endif%}   
-        <td>{{i[2].strftime('%d')|int}}</td> 
-        <td>{{i[3].strftime('%d')|int}}</td> 
-        <td>{{i[4].strftime('%d')|int}}</td>
-        <td>{{i[5].strftime('%d')|int}}</td>
-        <td>{{i[6].strftime('%d')|int}}</td>
-        <td>{{i[7].strftime('%d')|int}}</td>
-    </tr>
-        {% endfor %}
-    </table>
-  </div>
 {% endblock %}  
