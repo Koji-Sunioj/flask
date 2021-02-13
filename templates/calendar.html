@@ -1,0 +1,88 @@
+
+{% extends "layout.html" %}
+{% block content %}
+
+
+<h1 >{{title}}</h1>
+  <div class="container">
+  
+        <table class="table table-bordered" id="calendar">
+        <tr>
+          {% for col in framer.columns %}    
+            <th scope="col">{{col}}</th>  
+          {% endfor %}
+        </tr> 
+          {% for i in framer.values %}    
+        <tr>
+            <td >
+              <input  type="hidden" value="">
+              <button style="padding: 0; border-width: 0;"></button>{{i[0]}}</td>  
+            <td>
+              <form method="POST" class="calendar"> 
+              <input type="hidden" value="{{i[1].strftime('%Y-%m-%d')}}"  name="date"> 
+              <button class="btn btn-link"  id ="calendar_button">{{i[1].strftime('%d')|int}}</button>
+              </form>
+            </td> 
+            <td >
+                <form method="POST" id="calendar_form">
+                  <input class="btn btn-link" type="hidden"value="{{i[2].strftime('%Y-%m-%d')}}"  name="date">
+                  <button class="btn btn-link" id ="calendar_button">{{i[2].strftime('%d')|int}}</button>
+              </form>
+            </td> 
+            <td>
+              <form method="POST">
+                <input class="btn btn-link" type="hidden"value="{{i[3].strftime('%Y-%m-%d')}}"  name="date">
+                <button class="btn btn-link"  id ="calendar_button">{{i[3].strftime('%d')|int}}</button>
+              </form>
+            </td> 
+            <td>
+              <form method="POST">
+                <input class="btn btn-link" type="hidden"value="{{i[4].strftime('%Y-%m-%d')}}"  name="date">
+                <button class="btn btn-link"  id ="calendar_button"">{{i[4].strftime('%d')|int}}</button>
+              </form>
+            </td>
+            <td>
+              <form method="POST">
+                 <input class="btn btn-link" type="hidden"value="{{i[5].strftime('%Y-%m-%d')}}"  name="date">
+                <button class="btn btn-link"  id ="calendar_button">{{i[5].strftime('%d')|int}}</button>
+              </form> 
+            </td>
+            <td>
+              <form method="POST">
+                <input class="btn btn-link" type="hidden"value="{{i[6].strftime('%Y-%m-%d')}}"  name="date">
+                <button class="btn btn-link"  id ="calendar_button">{{i[6].strftime('%d')|int}}</button>
+              </form>
+            </td>
+            <td>
+              <form method="POST">
+                <input class="btn btn-link" type="hidden"value="{{i[7].strftime('%Y-%m-%d')}}"  name="date">
+                <button class="btn btn-link" id ="calendar_button">{{i[7].strftime('%d')|int}}</button>
+              </form>
+            </td>
+        </tr>
+            {% endfor %}
+        </table>
+
+  </div>
+ 
+  <script>
+    var today = new Date();
+    var dd = String(today.getDate()).padStart(2, '0');
+    var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+    var yyyy = today.getFullYear();
+    var today =yyyy + '-'+  mm + '-'+  dd;
+
+    var button = document.getElementById("calendar").getElementsByTagName("button");
+    var cells = document.getElementById("calendar").getElementsByTagName("td");
+    var hidden = document.getElementById("calendar").getElementsByTagName("input");
+    for (var i = 0; i < hidden.length; i++) {
+        if (hidden[i].value == today) {
+          cells[i].style.backgroundColor = "blue";
+          button[i].style.color = "white";
+        }
+        else {cells[i].style.backgroundColor = "white";}
+    }
+    </script>
+    
+    
+{% endblock %}  
