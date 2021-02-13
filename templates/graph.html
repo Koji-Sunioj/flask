@@ -1,20 +1,45 @@
 {% extends "layout.html" %}
 {% block content %}	
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
-			<script src="../static/main.js"></script>
-			<script src="https://code.highcharts.com/highcharts.js"></script>
-<div id={{ chartID|safe }} class="chart"></div>
-		<script>
-			 chart_id = {{ chartID|safe }};
-			 series = {{ series|safe }};
-			 title = {{ title|safe }};
-			 xAxis = {{ xAxis|safe }};
-			 yAxis = {{ yAxis|safe }};
-			 chart = {{ chart|safe }};
-			 subtitle = {{ subtitle|safe }};	
-		
-		</script>
-			
+
+
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<div id="fuck" style="width:100%; height:400px; padding-top: 20px;"></div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const chart = Highcharts.chart('fuck', {
+          chart: {
+              type: '{{chart_type}}'
+          },
+          title: {
+              text: '{{title}}'
+          },
+
+          subtitle: {
+              text: '{{subtitle}}'
+          },
+         
+          yAxis: {
+              title: {
+                  text: 'Fruit eaten'
+              }
+		  },
+		  xAxis: {
+                categories: {{municipality|tojson }}
+            },
+
+
+          series: [{
+              name: 'population',
+              data: {{population|tojson }}
+          }]
+      });
+	},
+	Highcharts.setOptions({
+	lang: {
+  	thousandsSep: ','
+  }}));
+</script>
+
 
 {% endblock %} 
 

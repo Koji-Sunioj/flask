@@ -1,18 +1,18 @@
 {% extends "layout.html" %}
 {% block content %}	
+
 <div class="row justify-content-md-center"> 
-	
-	<form action = "http://localhost:5000/weather/" method = "post" style="padding-top: 20px;"> 
+	<form action = "http://localhost:5000/weather/"  id="weather_input" method = "post" > 
 		<div class="input-group mb-3">
 			<div class="input-group-prepend">
-			<span class="input-group-text" id="">City:</span>
+			<span class="input-group-text">City:</span>
 			</div>
 			<div class="input-group-append">
-				<input type = "text" name = "city" />
+				<input type = "text" name = "city" >
 				<button class="btn btn-primary" type="submit">Submit</button>
 			</div>
 		</div>
 	</form>
-
 </div>
+
 {% endblock %} 

@@ -1,19 +1,17 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, redirect, url_for, request,json,session,render_template
 import re
-from functions import covid_frame,test_graph,get_weather,make_calendar
+from functions import covid_frame,test_graph,get_weather,make_calendar,home_dashboard
 import db_functions
-import matplotlib.pyplot as plt
 import datetime
 import pandas as pd
 import numpy as np
 import pygal
-import base64
 import json
 import requests
 import re
 import pymysql
-from io import BytesIO
+
 from datetime import datetime,date
 
 con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
@@ -23,6 +21,110 @@ con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 app = Flask(__name__)
 app.secret_key = 'any random string'
 
+
+@app.route("/")
+def index():
+	if 'message' in session:
+		message = session['message']
+		session.pop('message', None)
+		if 'username' in session:
+			social_header,summary = home_dashboard(session['hometown'])
+			session['weather_summary'] = summary
+			return render_template("index.html",message=message,social_header=social_header,summary=summary)
+		else:
+			return render_template("index.html",message=message)
+	elif 'username' in session:
+		diff_weather_log = session['log_time'] - datetime.strptime(session['weather_summary']['forecast_time'],'%Y-%m-%d %H:%M')
+		diff_weather_log = ((diff_weather_log.seconds//60))
+		if diff_weather_log < 120:
+			print(diff_weather_log)
+			social_header = db_functions.home_crud_first()
+			summary = session['weather_summary']
+			session['log_time'] = datetime.now()
+			return render_template("index.html",social_header=social_header,summary=summary)
+		else:
+			print(diff_weather_log)
+			social_header,summary = home_dashboard(session['hometown'])
+			session['weather_summary'] = summary
+			return render_template("index.html",social_header=social_header,summary=summary)
+	else:
+		return render_template("index.html")
+		
+@app.route("/calendar/",methods = ['POST', 'GET'])
+def home_calendar():
+	print(datetime.now().strftime('%Y-%m'))
+	if request.method == 'POST':
+		date = request.form['date']
+		return redirect(url_for('to_do',date=date))
+	else:
+		title,framer = make_calendar()
+		return render_template("calendar.html",framer=framer,title=title)
+
+@app.route("/calendar/to_do/<date>")
+def to_do(date):
+	title = datetime.strptime(date,'%Y-%m-%d').strftime('%B %d,%Y')
+	return render_template("to_do.html",title=title)
+
+@app.route('/logout/')
+def logout():
+	username = session['username']
+	message = 'username {} was succesfully logged out!'.format(username)
+	session['message'] = message
+	session.clear()
+	return redirect(url_for('index'))
+
+
+@app.route('/login/', methods = ['POST', 'GET'])
+def login_page():
+	if request.method == 'POST':
+		email_username = request.form['email_username']
+		password = request.form['password']
+		data = db_functions.check_user(email_username,password)
+		if len(data) == 0:
+			error_message = 'wrong username and password!'
+			return render_template('login.html', error_message=error_message)
+		else:
+			username = data[0][0]
+			email = data[0][1]
+			home_town = data[0][2]
+			session['username'] = username
+			session['hometown'] = home_town
+			session['log_time'] = datetime.now()
+			message = '{} succesfully logged in!'.format(username)
+			session['message'] = message
+			return redirect(url_for('index'))
+			
+	return render_template('login.html')
+
+
+	
+@app.route('/create_profile/', methods = ['POST', 'GET'])
+def create_profile():
+	if request.method == 'POST':
+		checked = [i == '' for i in request.form.values()]
+		if any(checked) == True:
+			error_message = 'please fill all the fields.'
+			return render_template('create_profile.html',error_message=error_message)
+		else:
+			email = request.form['email']
+			username = request.form['username']
+			home_town = request.form['home_town']
+			password = request.form['password']
+			data = db_functions.check_new_user(username)
+			if data:
+				error_message = 'that username is taken. please use a different one.'
+				return render_template('create_profile.html',error_message=error_message)
+			elif request.form['password'] != request.form['password_confirm']:
+				error_message = 'passwords do not match.'
+				return render_template('create_profile.html',error_message=error_message)
+			else:
+				db_functions.create_new_user(username,email,home_town,password)
+				title,framer = make_calendar()
+				message = 'username {} was succesfully created. now logged in!'.format(username)
+				session['username'] = username
+				session['message'] = message
+				return redirect(url_for('index'))
+	return render_template('create_profile.html')
 
 @app.context_processor
 def crud_component():
@@ -58,38 +160,6 @@ def crud():
 		else:
 			return render_template('crud.html')
 			
-@app.context_processor
-def test_component():
-	firefox = {'name':'Firefox','values':[0,0,0,16.6,25,31,36.4,45.5,46.3,42.8,37.1],'dates':['2020-1','2020-2','2020-3','2020-4','2020-5','2020-6','2020-7','2020-8','2020-9','2020-10','2020-11']}
-	chrome = {'name':'Chrome','values':[0 ,0,0,0,0,0,0,3.9,10.8,23.8,35.3],'dates':['2020-1','2020-2','2020-3','2020-4','2020-5','2020-6','2020-7','2020-8','2020-9','2020-10','2020-11']}
-	data=list((firefox,chrome))
-	return {'data':data}
-
-@app.route("/clear/", methods = ['POST', 'GET'], defaults={'info': None})
-def clear(info):
-	if request.method == 'GET':
-		return render_template("clear.html")
-	elif request.method == 'POST':
-		if request.form['last']:
-			data = request.form.get('plot')
-			data = eval(data)
-			if data['name'] == request.form['last']:
-				print('comparison done: same plot requested, plot cleared')
-				return render_template("clear.html")
-			else:
-				last = data['name']
-				graph_data = test_graph(data)
-				print('comparison done: different plot requested, plot granted')
-				return render_template("clear.html",last=last,graph_data=graph_data)
-		else:
-			data = request.form.get('plot')
-			data = eval(data)
-			last = data['name']
-			graph_data = test_graph(data)
-			print('no comparison performed, plot granted')
-			return render_template("clear.html",last=last,graph_data=graph_data)
-
-
 
 @app.route('/weather/',methods = ['POST', 'GET']) 
 def enter_city(): 
@@ -130,12 +200,6 @@ def covid_request():
 	
 	return render_template("covid.html",table = zip(country,cases,deaths,recovered,active,new),start=str(first),finish=str(last))
 
-@app.route("/")
-def index():
-	title,framer = make_calendar()
-	print(datetime.now())
-	return render_template("index.html",framer=framer,title=title)
-	
 @app.route("/pops")
 def db_load_pop():
 	con.connect()
@@ -150,91 +214,35 @@ def db_load_pop():
 	for i in rows:
 		municipality.append(i[0])
 		population.append(i[1])
-	
+
 	con.close()
 	return render_template("pops.html", pop_data = zip(municipality,population))
+
 
 @app.context_processor
 def inject_now():
 	return {'now': datetime.now()}
 	
-	
-@app.route('/login/', methods = ['POST', 'GET'])
-def login_page():
-	if request.method == 'POST':
-		email_username = request.form['email_username']
-		password = request.form['password']
-		data = db_functions.check_user(email_username,password)
-		if len(data) == 0:
-			error_message = 'wrong username and password!'
-			return render_template('login.html', error_message=error_message)
-		else:
-			username = data[0][0]
-			email = data[0][1]
-			session['username'] = username
-			message = '{} succesfully logged in!'.format(username)
-			title,framer = make_calendar() 
-			return render_template('index.html',message=message,framer=framer,title=title)
-	return render_template('login.html')
-
-@app.route('/create_profile/', methods = ['POST', 'GET'])
-def create_profile():
-	if request.method == 'POST':
-		checked = [i == '' for i in request.form.values()]
-		if any(checked) == True:
-			error_message = 'please fill all the fields.'
-			return render_template('create_profile.html',error_message=error_message)
-		else:
-			email = request.form['email']
-			username = request.form['username']
-			password = request.form['password']
-			data = db_functions.check_new_user(username)
-			if data:
-				error_message = 'that username is taken. please use a different one.'
-				return render_template('create_profile.html',error_message=error_message)
-			elif request.form['password'] != request.form['password_confirm']:
-				error_message = 'passwords do not match.'
-				return render_template('create_profile.html',error_message=error_message)
-			else:
-				db_functions.create_new_user(username,email,password)
-				title,framer = make_calendar()
-				message = 'username {} was succesfully created. now logged in!'.format(username)
-				session['username'] = username
-				return render_template('index.html',message=message,title=title,framer=framer)
-	return render_template('create_profile.html')
-
-@app.route('/logout/')
-def logout():
-	username = session['username']
-	session.pop('username', None)
-	message = 'username {} was succesfully logged out!'.format(username)
-	title,framer = make_calendar()
-	return render_template('index.html',message=message,framer=framer,title=title)
 
 @app.template_filter()
 def thousandsFormat(value):
-    value = int(value)
-    return "{:,}".format(value)
+	value = int(value)
+	return "{:,}".format(value)
+    
+@app.errorhandler(404)
+def page_not_found(e):
+	error = e
+	return render_template('404.html',error=error), 404
 
 '''testing highcharts here'''
-    
+
+
 @app.route('/graph/')
 def graph(chartID = 'population'):
 	columns,municipality,population = db_functions.top_10_pop()
-	series = [{"name": columns[1], "data": population}]
-	chart = {"renderTo": chartID, "type": 'column', "height": 500}
-	title = {"text": 'Top 10 cities in Finland ranked by population'}
-	subtitle = {"text": 'hey'}
-	xAxis = {"categories": municipality}
-	yAxis = {"title": {"text": columns[1]}}
-	return render_template('graph.html', chartID=chartID, chart=chart, series=series, title=title, xAxis=xAxis, yAxis=yAxis,subtitle=subtitle)
-
-@app.route('/graph_test/')
-def graph_test(chartID = 'population'):
-	columns,municipality,population = db_functions.top_10_pop()
 	chart_type = 'column'
 	title = 'hello'
-	return render_template('graph_test.html',chart_type=chart_type,population=population,municipality=municipality,title=columns[0],subtitle=columns[1])
+	return render_template('graph.html',chart_type=chart_type,population=population,municipality=municipality,title=columns[0],subtitle=columns[1])
 
 
 if (__name__ == "__main__"):

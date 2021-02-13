@@ -13,6 +13,23 @@ con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 from datetime import datetime,date,timedelta
 
 
+def home_dashboard(hometown):
+	social_header = db_functions.home_crud_first()
+	url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/weatherdata/forecast?aggregateHours=24&combinationMethod=aggregate&contentType=json&unitGroup=metric&locationMode=single&key=NFL5M6IWKEWK1CTBV54KLQ9JR&dataElements=default&locations={}'.format(hometown)
+	response = requests.get(url)
+	data = response.json()
+	print(str(data['remainingCost']) + ' server requests remaining today')
+	
+	home_town = data['location']['id']
+	weather_summary =  data['location']['currentConditions']['icon']
+	forecast_time = data['location']['currentConditions']['datetime'][:10] + ' '+ data['location']['currentConditions']['datetime'][11:16]
+	windchill = data['location']['currentConditions']['windchill']
+	temperature = data['location']['currentConditions']['temp']
+	
+	summary = {'home_town': home_town,'summary':weather_summary,'forecast_time':forecast_time,'wind_chill':windchill,'temperature':temperature}
+	
+	return social_header,summary
+
 def test_graph(data):
 	graph = pygal.Line()
 	graph.title = data['name']
@@ -20,8 +37,6 @@ def test_graph(data):
 	graph.add('data',  data['values'])
 	graph_data = graph.render_data_uri()
 	return graph_data
-	
-	
 
 def make_calendar():
 	stamp = pd.to_datetime(datetime.now())
