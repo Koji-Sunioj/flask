@@ -1,5 +1,14 @@
 import pymysql
-con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
+con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
+
+def home_crud_first():
+	con.connect()
+	select_main = con.cursor()
+	select_main.execute('call crud_dashboard()')
+	rows = select_main.fetchall()
+	con.commit()
+	return rows
+
 
 def covid_today():
 	con.connect()
@@ -115,8 +124,8 @@ def check_new_user(username):
 	con.commit()
 	return rows
 
-def create_new_user(username,email,password):
+def create_new_user(username,email,home_town,password):
 	insert_main = con.cursor()
-	insert_main.callproc('create_new_user',(username,email,password))
+	insert_main.callproc('create_new_user',(username,email,home_town,password))
 	con.commit()
 	
