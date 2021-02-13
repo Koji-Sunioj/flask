@@ -30,14 +30,6 @@ def home_dashboard(hometown):
 	
 	return social_header,summary
 
-def test_graph(data):
-	graph = pygal.Line()
-	graph.title = data['name']
-	graph.x_labels = data['dates']
-	graph.add('data',  data['values'])
-	graph_data = graph.render_data_uri()
-	return graph_data
-
 def make_calendar():
 	stamp = pd.to_datetime(datetime.now())
 	stamp_ranger = pd.date_range(start='{}/1/{}'.format(stamp.month,stamp.year), end='{}/{}/{}'.format(stamp.month,stamp.days_in_month,stamp.year))
