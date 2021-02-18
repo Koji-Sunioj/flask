@@ -9,3 +9,5 @@ this app is for my own learning, including some light javascript with the templa
 the reason i chose flask over django, is that i wanted to choose something with as little helper functions or add-ons as possible. meaning i would like to understand how everything works from it's most basic level - with using stored procedures directly from the database instead of configuring models, migrations etc. also the forms are pure html, not flask forms. 
 
 i found it interesting using pandas as a method of organizing data, which can also be rendered on the template system just fine. it is also useful for manipulating table structure in the back end.
+
+also i did not use a class system for storing session data, but rather the session module from flask. i read that the class system is problematic for scalability, and session works fine, so yeah.
