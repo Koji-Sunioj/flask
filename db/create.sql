@@ -4,8 +4,8 @@ BEGIN
 create table munic
 ( 	kunta varchar(15),
 	maakunta  varchar(17),
-    latitude float,
-    longitude float,
+    	latitude float,
+    	longitude float,
     
 	primary key (kunta)
 );
@@ -14,38 +14,34 @@ create table pops
 (	sample_year MEDIUMINT,
  	kunta varchar(15),
 	maakunta  varchar(17),
-    age varchar(7),
-    male MEDIUMINT,
-    female MEDIUMINT,
+    	age varchar(7),
+    	male MEDIUMINT,
+    	female MEDIUMINT,
     
-	primary key (sample_year, kunta,age)
+	primary key (sample_year, kunta,age),
+	foreign key  (kunta) references munic (kunta)
 );
-
-alter table pops
-add foreign key  (kunta)
-references munic (kunta);
-
 
 
 create table covid
-(record_date date,
- country varchar(32),
- cases int(8),
- deaths int(8),
- recovered int(8),
- active int(8),
- new_record int(8),
+(	record_date date,
+ 	country varchar(32),
+	cases int(8),
+	eaths int(8),
+	recovered int(8),
+	active int(8),
+	new_record int(8),
  
- primary key (record_date,country) );
+	primary key (record_date,country) );
  
  
  create table continent_table
-(country varchar(32),
- continent varchar(32),
+(	country varchar(32),
+	continent varchar(32),
  
- primary key (country) );
+ 	primary key (country) );
  
- alter table covid
+alter table covid
 add foreign key (country) references continent_table(country)
 on delete cascade;
 
@@ -55,76 +51,48 @@ SET
 WHERE
     country = 'Taiwan*'
     
-create table crud (
-	id tinyint auto_increment,
-	category TINYTEXT,
-	post TEXT,
-    stamp datetime default now() on update now(),
-	when_was varchar(7) default 'created',
-    username varchar(255);
-
-    
-	primary key(id,stamp)
-);
-
 CREATE TRIGGER update_when_was 
 	before update ON crud 
 	FOR EACH ROW
 		 SET new.when_was = 'edited';
 
-create table vantaa_weather
-(	record 	datetime,
-	temp	float,
-    dew		float,
-    humid	float,
-    precip	float,
-    msl		float,
-    clouds	float,
-    visible	float,
-    wind_speed	float,
-    wind_gust	float,
-    wind_dir 	float,
-    snow		float,
-    
-    primary key(record)
-	
-);
-
 create table users 
-
 (	username 	varchar(255) not null,
 	email		varchar(255) not null,
-    home_town 	varchar(255) not null,
-    password	varchar(255) not null,
+    	home_town 	varchar(255) not null,
+    	password	varchar(255) not null,
 	created 	datetime default now(),
-    primary key(email)
+    	primary key(email)
 
 );
 
-insert into users (username, email, password)values
+create table crud 
+(	id tinyint auto_increment,
+	category TINYTEXT,
+	post TEXT,
+    	stamp datetime default now() on update now(),
+	when_was varchar(7) default 'created',
+   	username varchar(255);
 
-('kokojumbo','koji.gabriel218@gmail.com','fuckoff');
+    	primary key(id,stamp),
+	foreign key (username) references users(username)
+);
 
-select * from users where 
-email = '' and password = 'fuckoffs' 
-or 
-username = 'kokojumbo' and password = 'fuckoffs';
 
 create table calendar
 
-( 	
-	cal_id tinyint auto_increment,
+( 	cal_id tinyint auto_increment,
 	start_time datetime not null,
 	end_time  datetime not null,
-    username  varchar(255),
-    category TINYTEXT  not null,
+    	username  varchar(255),
+    	category TINYTEXT  not null,
 	post TEXT not null,
     
 	primary key (cal_id),
-    foreign key (username) references users(username)
+    	foreign key (username) references users(username)
 );
 
-
+stored procedures for the app!
 
 DELIMITER //
 
