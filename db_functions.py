@@ -1,5 +1,5 @@
 import pymysql
-con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
+con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 
 def home_crud_first():
 	con.connect()
@@ -9,6 +9,12 @@ def home_crud_first():
 	con.commit()
 	return rows
 
+def create_new_task(start_time,end_time,username,category,post):
+	con.connect()
+	insert_main = con.cursor()
+	insert_main.callproc('create_new_task',(start_time,end_time,username,category,post))
+	con.commit()
+	
 
 def covid_today():
 	con.connect()
@@ -42,10 +48,10 @@ def crud_header():
 	con.commit()
 	return crud_read
 
-def crud_insert(category,post):
+def crud_insert(category,post,username):
 	con.connect()
 	insert_main = con.cursor()
-	insert_main.callproc('crud_create',(category,post,))
+	insert_main.callproc('crud_create',(category,post,username))
 	con.commit()
 
 def crud_delete(delete_id):
@@ -117,9 +123,9 @@ def check_user(email_username,password):
 	con.commit()
 	return rows
 
-def check_new_user(username):
+def check_new_user(email,username):
 	select_main = con.cursor()
-	select_main.callproc('check_new_user',(username,))
+	select_main.callproc('check_new_user',(email,username,))
 	rows = select_main.fetchall()
 	con.commit()
 	return rows
@@ -129,3 +135,9 @@ def create_new_user(username,email,home_town,password):
 	insert_main.callproc('create_new_user',(username,email,home_town,password))
 	con.commit()
 	
+def check_day_tasks(date,username):
+	select_main = con.cursor()
+	select_main.callproc('check_day_tasks',(date,username))
+	rows = select_main.fetchall()
+	con.commit()
+	return rows

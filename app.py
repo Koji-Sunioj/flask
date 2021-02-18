@@ -12,9 +12,9 @@ import requests
 import re
 import pymysql
 
-from datetime import datetime,date
+from datetime import datetime,date,timedelta
 
-con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
+con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 
 #export FLASK_ENV=development
 
@@ -30,9 +30,13 @@ def index():
 		if 'username' in session:
 			social_header,summary = home_dashboard(session['hometown'])
 			session['weather_summary'] = summary
+			print('initial login')
 			return render_template("index.html",message=message,social_header=social_header,summary=summary)
 		else:
+			session.clear()
+			print('user logged out')
 			return render_template("index.html",message=message)
+			
 	elif 'username' in session:
 		diff_weather_log = session['log_time'] - datetime.strptime(session['weather_summary']['forecast_time'],'%Y-%m-%d %H:%M')
 		diff_weather_log = ((diff_weather_log.seconds//60))
@@ -42,6 +46,10 @@ def index():
 			summary = session['weather_summary']
 			session['log_time'] = datetime.now()
 			return render_template("index.html",social_header=social_header,summary=summary)
+		elif diff_weather_log > 120:
+			social_header,summary = home_dashboard(session['hometown'])
+			session['log_time'] = datetime.now()
+			return render_template("index.html",social_header=social_header,summary=summary)
 		else:
 			print(diff_weather_log)
 			social_header,summary = home_dashboard(session['hometown'])
@@ -49,28 +57,82 @@ def index():
 			return render_template("index.html",social_header=social_header,summary=summary)
 	else:
 		return render_template("index.html")
-		
-@app.route("/calendar/",methods = ['POST', 'GET'])
-def home_calendar():
-	print(datetime.now().strftime('%Y-%m'))
+
+@app.route("/calendar/<date>",methods = ['POST', 'GET'])
+def home_calendar(date):
+	date = datetime.strptime(date,'%Y-%m')
 	if request.method == 'POST':
 		date = request.form['date']
-		return redirect(url_for('to_do',date=date))
+		year_month = datetime.strptime(date,'%Y-%m-%d').strftime('%Y-%m')
+		day = datetime.strptime(date,'%Y-%m-%d').strftime('%d')
+		return redirect(url_for('calendar',year_month=year_month,day=day))
 	else:
-		title,framer = make_calendar()
-		return render_template("calendar.html",framer=framer,title=title)
+		if 'username' in session:
+			state = 'enabled'
+			title,framer = make_calendar(date)
+			next_month = date + timedelta(days=int(pd.to_datetime(date).days_in_month))
+			prev_month =  date - timedelta(days=int(pd.to_datetime(date).days_in_month))
+			return render_template("calendar.html",framer=framer,title=title,date=date,next_month=next_month,prev_month=prev_month,state=state)
+		else:
+			title,framer = make_calendar(date)
+			next_month = date + timedelta(days=int(pd.to_datetime(date).days_in_month))
+			prev_month =  date - timedelta(days=int(pd.to_datetime(date).days_in_month))
+			return render_template("calendar.html",framer=framer,title=title,date=date,next_month=next_month,prev_month=prev_month,state='disabled')
 
-@app.route("/calendar/to_do/<date>")
-def to_do(date):
-	title = datetime.strptime(date,'%Y-%m-%d').strftime('%B %d,%Y')
-	return render_template("to_do.html",title=title)
+@app.route("/calendar/<year_month>/<day>",methods = ['POST', 'GET'])
+def calendar(year_month,day):
+	day = pd.to_datetime(year_month +'-'+ day).strftime('%Y-%m-%d')
+	times = [str(pd.to_datetime(day) + timedelta(hours = int(i))) for i in np.arange(0,25)]
+	if request.method == 'POST':
+		try:
+			if 'whole_day' in request.form:
+				if db_functions.check_day_tasks(day,session['username']):
+					message = '{} tasks already exists for those times!'.format(len(db_functions.check_day_tasks(day,session['username'])))
+					day_data = db_functions.check_day_tasks(day,session['username'])
+					title = datetime.strptime(day,'%Y-%m-%d').strftime('%B %d,%Y')
+					return render_template("to_do.html",title=title,times=times,day_data=day_data,message=message)
+				else:
+					start_time = datetime.strptime(day,'%Y-%m-%d')
+					end_time = start_time + timedelta(hours = 24)
+					username = session['username']
+					category = request.form['category']
+					post = request.form['post']
+					db_functions.create_new_task(start_time,end_time,username,category,post)
+					return redirect(url_for('home_calendar',date=day[:7]))
+			else:
+				start_time = request.form['start_time']
+				end_time = request.form['end_time']
+				username = session['username']
+				category = request.form['category']
+				post = request.form['post']
+				date_string = pd.date_range(start_time,end_time,freq='H').astype(str).to_list()[:-1]
+				day_data = pd.DataFrame(db_functions.check_day_tasks(day,session['username']))
+				check_slots = [any(item in date_string for item in pd.date_range(i[0],i[1],freq='H').astype(str).to_list()[:-1])  for i in day_data[day_data.columns[0:2]].values]
+				if any(check_slots):
+					message = '{} tasks already exists for those times!'.format(sum(check_slots))
+					day_data = db_functions.check_day_tasks(day,session['username'])
+					title = datetime.strptime(day,'%Y-%m-%d').strftime('%B %d,%Y')
+					return render_template("to_do.html",title=title,times=times,day_data=day_data,message=message)
+				else:
+					db_functions.create_new_task(start_time,end_time,username,category,post)
+					return redirect(url_for('home_calendar',date=day[:7]))
+		except:
+			message = 'please select start and end times!'
+			day_data = db_functions.check_day_tasks(day,session['username'])
+			title = datetime.strptime(day,'%Y-%m-%d').strftime('%A, %B %d,%Y')
+			return render_template("to_do.html",title=title,times=times,day_data=day_data,message=message)
+	
+	day_data = db_functions.check_day_tasks(day,session['username'])
+	title = datetime.strptime(day,'%Y-%m-%d').strftime('%A, %B %d,%Y')
+	return render_template("to_do.html",title=title,times=times,day_data=day_data)
+
+
 
 @app.route('/logout/')
 def logout():
-	username = session['username']
-	message = 'username {} was succesfully logged out!'.format(username)
+	message = 'username {} was succesfully logged out!'.format(session['username'])
 	session['message'] = message
-	session.clear()
+	session.pop('username', None)
 	return redirect(url_for('index'))
 
 
@@ -110,19 +172,21 @@ def create_profile():
 			username = request.form['username']
 			home_town = request.form['home_town']
 			password = request.form['password']
-			data = db_functions.check_new_user(username)
+			data = db_functions.check_new_user(email,username)
 			if data:
-				error_message = 'that username is taken. please use a different one.'
+				error_message = 'that email or username is taken. please use a different one.'
 				return render_template('create_profile.html',error_message=error_message)
 			elif request.form['password'] != request.form['password_confirm']:
 				error_message = 'passwords do not match.'
 				return render_template('create_profile.html',error_message=error_message)
 			else:
 				db_functions.create_new_user(username,email,home_town,password)
-				title,framer = make_calendar()
+				#title,framer = make_calendar()
 				message = 'username {} was succesfully created. now logged in!'.format(username)
 				session['username'] = username
 				session['message'] = message
+				session['hometown'] = home_town
+				session['log_time'] = datetime.now()
 				return redirect(url_for('index'))
 	return render_template('create_profile.html')
 
@@ -137,9 +201,10 @@ def crud():
 		return render_template('crud.html')
 	elif request.method == 'POST':
 		if request.form.get('category'):
+			username = session['username']
 			category = request.form['category']
 			post = request.form['post']
-			db_functions.crud_insert(category,post)
+			db_functions.crud_insert(category,post,username)
 			return render_template('crud.html')
 		elif request.form.get('delete'):
 			delete_id = request.form['delete']
@@ -233,6 +298,7 @@ def thousandsFormat(value):
 def page_not_found(e):
 	error = e
 	return render_template('404.html',error=error), 404
+
 
 '''testing highcharts here'''
 
