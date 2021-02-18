@@ -38,8 +38,8 @@ def test_graph(data):
 	graph_data = graph.render_data_uri()
 	return graph_data
 
-def make_calendar():
-	stamp = pd.to_datetime(datetime.now())
+def make_calendar(date):
+	stamp = pd.to_datetime(date)
 	stamp_ranger = pd.date_range(start='{}/1/{}'.format(stamp.month,stamp.year), end='{}/{}/{}'.format(stamp.month,stamp.days_in_month,stamp.year))
 	framer = pd.DataFrame(stamp_ranger.weekofyear.unique(),columns=['week'])
 	framer['year'] =  [stamp_ranger.year.unique().values[0] for i in framer.values ]

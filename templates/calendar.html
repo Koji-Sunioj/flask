@@ -1,11 +1,23 @@
 
 {% extends "layout.html" %}
 {% block content %}
+<div class="row">
+  <div class="col-4" >
+   <h1>
+     
+      <a class="calendar_shift"  href="{{ url_for('home_calendar',date=prev_month.strftime('%Y-%m'))}}">&#9666;</a>
+   </h1>
+  </div>
+  <div class="col-4">
+    <h1 >{{title}}</h1>
+  </div>
+    <div class="col-4" >
+      <h1>
+        <a class="calendar_shift" href="{{ url_for('home_calendar',date=next_month.strftime('%Y-%m'))}}" >&#9656;</a>
+       </h1>
+    </div>
 
-
-<h1 >{{title}}</h1>
-  <div class="container">
-  
+</div>
         <table class="table table-bordered" id="calendar">
         <tr>
           {% for col in framer.columns %}    
@@ -15,48 +27,48 @@
           {% for i in framer.values %}    
         <tr>
             <td >
-              <input  type="hidden" value="">
-              <button style="padding: 0; border-width: 0;"></button>{{i[0]}}</td>  
-            <td>
-              <form method="POST" class="calendar"> 
+              <input  type="hidden">
+              <button style="padding: 0; border-width: 0;"></button><strong>{{i[0]}}</strong></td>  
+            <td class="col_value">
+              <form method="POST" >
               <input type="hidden" value="{{i[1].strftime('%Y-%m-%d')}}"  name="date"> 
-              <button class="btn btn-link"  id ="calendar_button">{{i[1].strftime('%d')|int}}</button>
+              <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[1].strftime('%d')|int}}</button>
               </form>
             </td> 
-            <td >
-                <form method="POST" id="calendar_form">
-                  <input class="btn btn-link" type="hidden"value="{{i[2].strftime('%Y-%m-%d')}}"  name="date">
-                  <button class="btn btn-link" id ="calendar_button">{{i[2].strftime('%d')|int}}</button>
+            <td class="col_value">
+                <form method="POST" >
+                  <input  type="hidden"value="{{i[2].strftime('%Y-%m-%d')}}"  name="date">
+                  <button class="btn btn-link" id ="calendar_button" {{state}}>{{i[2].strftime('%d')|int}}</button>
               </form>
             </td> 
-            <td>
+            <td class="col_value" >
               <form method="POST">
-                <input class="btn btn-link" type="hidden"value="{{i[3].strftime('%Y-%m-%d')}}"  name="date">
-                <button class="btn btn-link"  id ="calendar_button">{{i[3].strftime('%d')|int}}</button>
+                <input type="hidden"value="{{i[3].strftime('%Y-%m-%d')}}"  name="date">
+                <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[3].strftime('%d')|int}}</button>
               </form>
             </td> 
-            <td>
+            <td class="col_value">
               <form method="POST">
-                <input class="btn btn-link" type="hidden"value="{{i[4].strftime('%Y-%m-%d')}}"  name="date">
-                <button class="btn btn-link"  id ="calendar_button"">{{i[4].strftime('%d')|int}}</button>
+                <input  type="hidden"value="{{i[4].strftime('%Y-%m-%d')}}"  name="date">
+                <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[4].strftime('%d')|int}}</button>
               </form>
             </td>
-            <td>
+            <td class="col_value">
               <form method="POST">
-                 <input class="btn btn-link" type="hidden"value="{{i[5].strftime('%Y-%m-%d')}}"  name="date">
-                <button class="btn btn-link"  id ="calendar_button">{{i[5].strftime('%d')|int}}</button>
+                 <input  type="hidden"value="{{i[5].strftime('%Y-%m-%d')}}"  name="date">
+                <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[5].strftime('%d')|int}}</button>
               </form> 
             </td>
-            <td>
+            <td class="col_value">
               <form method="POST">
-                <input class="btn btn-link" type="hidden"value="{{i[6].strftime('%Y-%m-%d')}}"  name="date">
-                <button class="btn btn-link"  id ="calendar_button">{{i[6].strftime('%d')|int}}</button>
+                <input  type="hidden"value="{{i[6].strftime('%Y-%m-%d')}}"  name="date">
+                <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[6].strftime('%d')|int}}</button>
               </form>
             </td>
-            <td>
+            <td class="col_value">
               <form method="POST">
-                <input class="btn btn-link" type="hidden"value="{{i[7].strftime('%Y-%m-%d')}}"  name="date">
-                <button class="btn btn-link" id ="calendar_button">{{i[7].strftime('%d')|int}}</button>
+                <input  type="hidden"value="{{i[7].strftime('%Y-%m-%d')}}"  name="date">
+                <button class="btn btn-link" id ="calendar_button" {{state}}>{{i[7].strftime('%d')|int}}</button>
               </form>
             </td>
         </tr>
@@ -64,7 +76,7 @@
         </table>
 
   </div>
- 
+  <p id="demo"></p>
   <script>
     var today = new Date();
     var dd = String(today.getDate()).padStart(2, '0');
@@ -75,13 +87,34 @@
     var button = document.getElementById("calendar").getElementsByTagName("button");
     var cells = document.getElementById("calendar").getElementsByTagName("td");
     var hidden = document.getElementById("calendar").getElementsByTagName("input");
-    for (var i = 0; i < hidden.length; i++) {
-        if (hidden[i].value == today) {
+
+    for (var i = 0; i < hidden.length; i++) 
+
+    {
+        if (hidden[i].value == today) 
+        {
           cells[i].style.backgroundColor = "blue";
           button[i].style.color = "white";
         }
-        else {cells[i].style.backgroundColor = "white";}
+        
+        else if (hidden[i].value.replace(/-/g, "").substring(0,6).length < 3)
+          {
+            cells[i].style.backgroundColor = "white";
+          }
+       
+
+        else if (hidden[i].value.replace(/-/g, "").substring(0,6) != '{{date}}'.replace(/-/g, "").substring(0,6))
+          {
+            cells[i].style.backgroundColor = "#cceeff";
+            button[i].disabled = "true";
+          }
+        else 
+          {
+            cells[i].style.backgroundColor = "white";
+          }
     }
+
+   
     </script>
     
     
