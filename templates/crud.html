@@ -21,14 +21,18 @@
          </div>
          <div class="form-group">
             <label>Text</label>
-            <textarea class="form-control"  rows="3" placeholder="Taking over saturated selfies in Finnish forests" name="update_post">{{post}}</textarea>
+            <textarea class="form-control"  style="margin-bottom: 20px;" rows="3" placeholder="Taking over saturated selfies in Finnish forests" name="update_post">{{post}}</textarea>
+            <button class="btn btn-primary">Update</button>
+            <a href="{{ url_for('crud')}}" class="btn btn-primary" role="button" >Cancel</a>
+         
          </div>
-         <button class="btn btn-primary">Update</button>
-         <a href="{{ url_for('crud')}}" class="btn btn-primary" role="button" >Cancel</a>
+         
    </form>
       
 {% else %}
 <!--if else, render blank form-->
+
+{% if session['username']%}
    <h2 >Create a Post</h2>
    <form  method="POST" action="http://localhost:5000/crud/" class="border" name="submit">
       <div class="form-group">
@@ -38,18 +42,23 @@
       <div class="form-group">
          <label>Text</label>
          <textarea class="form-control"  rows="3" placeholder="Taking over saturated selfies in Finnish forests" name="post"></textarea>
+         <button class="btn btn-primary" style="margin-top: 20px;">Submit</button>
       </div>
-      <button class="btn btn-primary">Submit</button>
+     
    </form>
+   {% endif %}
 {% endif %}
 <!--cycle through posts from db-->
 <div style="width: 70%; margin:auto; margin-top: 20px;">
-{% for id,category,post,date,when_was in crud_read %}  
+{% for id,category,post,date,when_was,username in crud_read %}  
    <div class="card" >
       <div class="card-body">
-         <h5 class="card-title">{{category}}</h5>
+        
+         <h5 class="card-title">{{username}}</h5>
+         <p class="card-text"><strong>{{category}}</strong></p>
          <p class="card-text">{{post}}</p>
-         <p class="card-subtitle mb-2 text-muted">{{when_was}}: {{date}}</p>
+         <p class="card-subtitle mb-2 text-muted">{{when_was}}: {{date}}</p>    
+        {% if  username == session['username']%}
          <form class="new_form" method="POST" action="http://localhost:5000/crud/" name="update" >
             <input type="hidden" value="{{id}}" name="edit">
             <input type="submit" class="btn btn-link" style="text-decoration: none; padding: none;" value="edit">
@@ -58,6 +67,8 @@
             <input type="hidden" value="{{id}}" name="delete">
             <input type="submit" class="btn btn-link" style="text-decoration: none;  padding: none;" value="delete">
          </form>
+         {% endif %}
+   
       </div>  
    </div>  
       

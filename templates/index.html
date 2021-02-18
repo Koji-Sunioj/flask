@@ -6,24 +6,23 @@
 
 <div class="row" style="padding-top: 20px; ">
   
-  
 
-<div class="card col-4 offset-1"  style="width: 18rem;">
+<div class="card col-3 offset-2"  style="width: 18rem;">
   <a href="{{ url_for('crud')}}" style="text-align: center; color:blue; padding-top:20px; margin: 0px; " >Latest social media post</a>
   <div class="card-body">
-    <h5 class="card-title">{{social_header[0][0]}}</h5>
+    <h6 class="card-title">{{social_header[0][0]}}</h6>
     <p class="card-text">{{social_header[0][1]}}.</p>
-    <h6 class="card-subtitle mb-2 text-muted">{{social_header[0][3]}} on {{social_header[0][2]}}.</h6>
+    <p class="card-subtitle mb-2 text-muted">{{social_header[0][3]}} on {{social_header[0][2]}}.</p>
   </div>
 </div>
 
 
-<div class="card col-4 offset-1"  style="width: 18rem;">
+<div class="card col-3 offset-2"  style="width: 18rem;">
   <a href="{{url_for('weather_city',city=summary['home_town'] )}}" style="text-align: center; color:blue; padding-top:20px; margin: 0px;">Current conditions in {{summary['home_town']}} </a>
   <div class="card-body">
-    <h5 class="card-title">{{summary['temperature']}} {% if summary['wind_chill'] %} C°, Feels like {{summary['wind_chill']}} C°.{% endif %}</h5>
+    <h6 class="card-title">{{summary['temperature']}} {% if summary['wind_chill'] %} C°, feels like {{summary['wind_chill']}} C°.{% endif %}</h5>
     <p class="card-text">{{summary['summary']}}</p>
-    <h6 class="card-subtitle mb-2 text-muted">updated on {{summary['forecast_time']}}.</h6>
+    <p class="card-subtitle mb-2 text-muted">updated on {{summary['forecast_time']}}.</p>
     
   </div>
 </div>

@@ -1,6 +1,5 @@
 {% extends "layout.html" %}
 {% block content %}	
-
   <style>
     h2 {width: 50%; margin: auto; text-align: center; padding: 20px;}
     form {width: 70%; padding: 20px; margin:auto; background-color:#f5f5f5;}
@@ -8,17 +7,90 @@
     .new_form{ margin: 0; padding:0; background-color: white; display: inline; }
     a, a:hover,a:visited, a:focus {text-decoration:none;}
  </style>
-  <h2 >Create a task for {{title}}</h2>
+  <h2 >Create task for {{title}}</h2>
    <form  method="POST" class="border" name="submit">
       <div class="form-group">
-         <label>add title</label>
-         <input class="form-control" placeholder="shopping" name="title">
-         <br>
-         <textarea class="form-control"  rows="3" placeholder="Taking over saturated selfies in Finnish forests" name="update_post"></textarea>
+
+         <div class="form-check">
+
+            <input class="form-check-input" type="checkbox" name="whole_day" id="flexCheckChecked" checked onclick="myFunction()">
+            <label class="form-check-label" for="flexCheckChecked">
+              All day
+            </label>
+          </div> 
+          <div id="text" style="display:none"> 
+            <div class="row">
+               <div class="col-4">
+                  <select class="form-select" aria-label="Default select example" style="margin-top: 20px;" name ="start_time" id="fromtime" (change)="changeFromTime($event.target.value)">
+                     <option selected disabled>Start time</option>
+                     {% for time in times[:-1] %}
+                     <option value="{{time}}" >{{time[11:16]}}</option>
+                     {% endfor %}
+                  </select>
+               </div>
+               <div class="col-4">
+                  <select class="form-select" aria-label="Default select example" style="margin-top: 20px;" name ="end_time" id="totime">
+                     <option selected disabled>End time</option>
+                     {% for time in times %}
+                     <option value="{{time}}" >{{time[11:16]}}</option>
+                     {% endfor %}
+                  </select>
+               </div>
+            </div>
+            </div>
+         </div>
+        
+         <input class="form-control" placeholder="forest larping" name="category" style="margin-top: 20px;">
+         <textarea class="form-control"  rows="3" placeholder="chilling in män-tsälä like a real män" name="post" style="margin-top: 20px;"></textarea>
+         <button class="btn btn-primary" style="margin-top: 20px;">Submit</button>
       </div>
-      <button class="btn btn-primary">Submit</button>
+      
       
    </form>
    <br> 
+   {% if message  %}
+   <div class="col-4 offset-4" style="margin-top: 20px;"> 
+     <p class="alert alert-warning" role="alert">{{message}}</p>
+   </div>
+   {% endif%}
+   
+   {%if day_data%}
+   <div style="width: 70%; margin:auto;">
+      <h2>Existing tasks</h2>
+      {% for i in day_data %}
+            
+      <div class="card">
+         <div class="card-body">
+            <p class="card-text"><strong>{{i[2]}}</strong></p>
+            <p class="card-text">{{i[3]}}</p>
+            {% if i[0].strftime('%H')|int == 0 and i[1].strftime('%H')|int == 0%}
+            <p class="card-subtitle mb-2 text-muted">all day!</p>   
+            {% else %}
+            <p class="card-subtitle mb-2 text-muted">{{i[0].strftime('%H:%M')}} to {{i[1].strftime('%H:%M')}}</p>   
+            {% endif%}
+         </div>  
+      </div>  
+   {% endfor %}
+</div>
+   {% endif %}
+   <script>
+function myFunction() {
+  var checkBox = document.getElementById("flexCheckChecked");
+  var text = document.getElementById("text");
+  if (checkBox.checked == false){
+    text.style.display = "inline";
+  } else {
+     text.style.display = "none";
+  }
+}
 
+
+   $('#fromtime').on('change', function(){
+      var fromTime = $(this).val();
+      var today = new Date($(this).val());
+   
+   $('#totime option').filter(function() {
+      var tempDate = new Date($(this).val());
+      return tempDate <= today;}).prop('disabled', true);});
+ </script>
 {% endblock %} 
