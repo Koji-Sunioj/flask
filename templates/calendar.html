@@ -1,83 +1,190 @@
-
 {% extends "layout.html" %}
 {% block content %}
+<style>
+td.col_value
+{width: 200px;height: 200px;}
+li {font-size: 15px;}
+p.data_title {font-weight: bold; display: inline; margin: 0px; padding: 0px;}
+
+ul {text-align: left; padding-left: 20px; margin-bottom: 5px;}
+span {margin: 0px;padding: 0px;}
+
+ul li:nth-of-type(1n+6) {display: none;}
+</style>
+<!--ul li:nth-child(n+6) {
+    display:none;
+}-->
 <div class="row">
   <div class="col-4" >
-   <h1>
-     
+    <h1>
       <a class="calendar_shift"  href="{{ url_for('home_calendar',date=prev_month.strftime('%Y-%m'))}}">&#9666;</a>
-   </h1>
+    </h1>
   </div>
   <div class="col-4">
     <h1 >{{title}}</h1>
   </div>
-    <div class="col-4" >
-      <h1>
-        <a class="calendar_shift" href="{{ url_for('home_calendar',date=next_month.strftime('%Y-%m'))}}" >&#9656;</a>
-       </h1>
-    </div>
-
-</div>
-        <table class="table table-bordered" id="calendar">
-        <tr>
-          {% for col in framer.columns %}    
-            <th scope="col">{{col}}</th>  
-          {% endfor %}
-        </tr> 
-          {% for i in framer.values %}    
-        <tr>
-            <td >
-              <input  type="hidden">
-              <button style="padding: 0; border-width: 0;"></button><strong>{{i[0]}}</strong></td>  
-            <td class="col_value">
-              <form method="POST" >
-              <input type="hidden" value="{{i[1].strftime('%Y-%m-%d')}}"  name="date"> 
-              <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[1].strftime('%d')|int}}</button>
-              </form>
-            </td> 
-            <td class="col_value">
-                <form method="POST" >
-                  <input  type="hidden"value="{{i[2].strftime('%Y-%m-%d')}}"  name="date">
-                  <button class="btn btn-link" id ="calendar_button" {{state}}>{{i[2].strftime('%d')|int}}</button>
-              </form>
-            </td> 
-            <td class="col_value" >
-              <form method="POST">
-                <input type="hidden"value="{{i[3].strftime('%Y-%m-%d')}}"  name="date">
-                <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[3].strftime('%d')|int}}</button>
-              </form>
-            </td> 
-            <td class="col_value">
-              <form method="POST">
-                <input  type="hidden"value="{{i[4].strftime('%Y-%m-%d')}}"  name="date">
-                <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[4].strftime('%d')|int}}</button>
-              </form>
-            </td>
-            <td class="col_value">
-              <form method="POST">
-                 <input  type="hidden"value="{{i[5].strftime('%Y-%m-%d')}}"  name="date">
-                <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[5].strftime('%d')|int}}</button>
-              </form> 
-            </td>
-            <td class="col_value">
-              <form method="POST">
-                <input  type="hidden"value="{{i[6].strftime('%Y-%m-%d')}}"  name="date">
-                <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[6].strftime('%d')|int}}</button>
-              </form>
-            </td>
-            <td class="col_value">
-              <form method="POST">
-                <input  type="hidden"value="{{i[7].strftime('%Y-%m-%d')}}"  name="date">
-                <button class="btn btn-link" id ="calendar_button" {{state}}>{{i[7].strftime('%d')|int}}</button>
-              </form>
-            </td>
-        </tr>
-            {% endfor %}
-        </table>
-
+  <div class="col-4" >
+    <h1>
+      <a class="calendar_shift" href="{{ url_for('home_calendar',date=next_month.strftime('%Y-%m'))}}" >&#9656;</a>
+    </h1>
   </div>
-  <p id="demo"></p>
-  <script>
+</div>
+<table class="table table-bordered" id="calendar">
+  <tr>
+    {% for col in framer.columns %}    
+    <th scope="col">{{col}}</th>  
+    {% endfor %}
+  </tr> 
+{% for i in framer.values %}    
+  <tr>
+    <td >
+      <input  type="hidden">
+      <button style="padding: 0; border-width: 0; text-align: center;"></button><strong>{{i[0]}}</strong></td>  
+    <td class="col_value">
+      <form method="POST" style="text-align: left;">
+      {% if i[1]|string|length > 19%}
+        <input  type="hidden"value="{{i[1]['date'].strftime('%Y-%m-%d')}}"  name="date">
+        <button class="btn btn-link"  id ="calendar_button" {{state}}>
+        <p class="day_marker">{{i[1]['date'].strftime('%d')|int}}</p>
+        <ul>
+          {% for value in i[1]['data'].items() %}
+            <li>{{value[1]['title']|truncate(9, False, '', 0)}}: {{value[1]['start_time'].strftime('%H')}} - {{value[1]['end_time'].strftime('%H:%M')}}</li>
+          {% endfor %}
+        </ul>
+        <span class="someClass"></span>
+        </button>
+      {% else %}
+      <input  type="hidden"value="{{i[1].strftime('%Y-%m-%d')}}"  name="date">
+      <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[1].strftime('%d')|int}}</button>
+      {% endif %}
+      </form>
+    </td> 
+    <td class="col_value">
+      <form method="POST" >
+      {% if i[2]|string|length > 19%}
+        <input  type="hidden"value="{{i[2]['date'].strftime('%Y-%m-%d')}}"  name="date">
+        <button class="btn btn-link"  id ="calendar_button" {{state}}>
+        <p class="day_marker">{{i[2]['date'].strftime('%d')|int}}</p>
+        <ul>
+          {% for value in i[2]['data'].items() %}
+            <li>{{value[1]['title']|truncate(9, False, '', 0)}}: {{value[1]['start_time'].strftime('%H')}} - {{value[1]['end_time'].strftime('%H:%M')}}</li>  
+          {% endfor %}
+        </ul>
+        <span class="someClass"></span>
+        </button>
+      {% else %}
+      <input  type="hidden"value="{{i[2].strftime('%Y-%m-%d')}}"  name="date">
+      <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[2].strftime('%d')|int}}</button>
+      {% endif %}
+      </form>
+    </td> 
+    <td class="col_value" >
+      <form method="POST">
+      {% if i[3]|string|length > 19%}
+        <input  type="hidden"value="{{i[3]['date'].strftime('%Y-%m-%d')}}"  name="date">
+        <button class="btn btn-link"  id ="calendar_button" {{state}}>
+        <p class="day_marker">{{i[3]['date'].strftime('%d')|int}}</p>
+        <ul>
+          {% for value in i[3]['data'].items() %}
+            <li>{{value[1]['title']|truncate(9, False, '', 0)}}: {{value[1]['start_time'].strftime('%H')}} - {{value[1]['end_time'].strftime('%H:%M')}}</li>
+            {% endfor %}
+          </ul>
+          <span class="someClass"></span>
+          </button>
+      {% else %}
+      <input  type="hidden"value="{{i[3].strftime('%Y-%m-%d')}}"  name="date">
+      <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[3].strftime('%d')|int}}</button>
+      {% endif %}
+      </form>
+    </td> 
+    <td class="col_value">
+      <form method="POST">
+        {% if i[4]|string|length > 19%}
+        <input  type="hidden"value="{{i[4]['date'].strftime('%Y-%m-%d')}}"  name="date">
+        <button class="btn btn-link"  id ="calendar_button" {{state}}>
+        <p class="day_marker">{{i[4]['date'].strftime('%d')|int}}</p>
+        <ul>
+          {% for value in i[4]['data'].items() %}
+            <li>{{value[1]['title']|truncate(9, False, '', 0)}}: {{value[1]['start_time'].strftime('%H')}} - {{value[1]['end_time'].strftime('%H:%M')}}</li> 
+          {% endfor %}
+        </ul>
+        <span class="someClass"></span>
+        </button>
+        {% else %}
+        <input  type="hidden"value="{{i[4].strftime('%Y-%m-%d')}}"  name="date">
+        <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[4].strftime('%d')|int}}</button>
+        {% endif %}
+      </form>
+    </td>
+    <td class="col_value">
+      <form method="POST">
+        {% if i[5]|string|length > 19%}
+        <input  type="hidden"value="{{i[5]['date'].strftime('%Y-%m-%d')}}"  name="date">
+        <button class="btn btn-link"  id ="calendar_button" {{state}}>
+        <p class="day_marker">{{i[5]['date'].strftime('%d')|int}}</p>
+        <ul>
+          {% for value in i[5]['data'].items() %}
+            <li>{{value[1]['title']|truncate(6, False, '', 0)}}: {{value[1]['start_time'].strftime('%H')}} - {{value[1]['end_time'].strftime('%H:%M')}}</li>
+          {% endfor %}
+        </ul>
+        <span class="someClass"></span>
+        </button>
+        {% else %}
+        <input  type="hidden"value="{{i[5].strftime('%Y-%m-%d')}}"  name="date">
+        <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[5].strftime('%d')|int}}</button>
+        {% endif %}
+      </form>
+    </td>
+    <td class="col_value">
+      <form method="POST">
+        {% if i[6]|string|length > 19%}
+        <input  type="hidden"value="{{i[6]['date'].strftime('%Y-%m-%d')}}"  name="date">
+        <button class="btn btn-link"  id ="calendar_button" {{state}}>
+        <p class="day_marker">{{i[6]['date'].strftime('%d')|int}}</p>
+        <ul>
+          {% for value in i[6]['data'].items() %}
+            <li>{{value[1]['title']|truncate(9, False, '', 0)}}: {{value[1]['start_time'].strftime('%H')}} - {{value[1]['end_time'].strftime('%H:%M')}}</li> 
+          {% endfor %}
+        </ul>
+        <span class="someClass"></span>
+        </button>
+        {% else %}
+        <input  type="hidden"value="{{i[6].strftime('%Y-%m-%d')}}"  name="date">
+        <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[6].strftime('%d')|int}}</button>
+        {% endif %}
+      </form>
+    </td>
+    <td class="col_value">
+      <form method="POST">
+      {% if i[7]|string|length > 19%}
+      <input  type="hidden"value="{{i[7]['date'].strftime('%Y-%m-%d')}}"  name="date">
+      <button class="btn btn-link"  id ="calendar_button" {{state}}>
+      <p class="day_marker">{{i[7]['date'].strftime('%d')|int}}</p>
+      <ul id="myList">
+        {% for value in i[7]['data'].items() %}
+          <li>{{value[1]['title']|truncate(9, False, '', 0)}}: {{value[1]['start_time'].strftime('%H')}} - {{value[1]['end_time'].strftime('%H:%M')}}</li>
+        {% endfor %}
+      </ul>
+      <span class="someClass"></span>
+      </button>
+      {% else %}
+      <input  type="hidden"value="{{i[7].strftime('%Y-%m-%d')}}"  name="date">
+      <button class="btn btn-link"  id ="calendar_button" {{state}}>{{i[7].strftime('%d')|int}}</button>
+      {% endif %}
+      </form>
+    </td>
+  </tr>
+{% endfor %}
+</table>
+
+
+{% if message  %}
+  <div class="col-4 offset-4" style="margin-top: 20px;">
+    <p class="alert alert-success" role="alert">{{message}}</p>
+  </div>
+{% endif%}  
+
+<script>
     var today = new Date();
     var dd = String(today.getDate()).padStart(2, '0');
     var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
@@ -89,20 +196,16 @@
     var hidden = document.getElementById("calendar").getElementsByTagName("input");
 
     for (var i = 0; i < hidden.length; i++) 
-
     {
         if (hidden[i].value == today) 
         {
           cells[i].style.backgroundColor = "blue";
           button[i].style.color = "white";
         }
-        
         else if (hidden[i].value.replace(/-/g, "").substring(0,6).length < 3)
           {
             cells[i].style.backgroundColor = "white";
           }
-       
-
         else if (hidden[i].value.replace(/-/g, "").substring(0,6) != '{{date}}'.replace(/-/g, "").substring(0,6))
           {
             cells[i].style.backgroundColor = "#cceeff";
@@ -113,9 +216,18 @@
             cells[i].style.backgroundColor = "white";
           }
     }
+ 
+	//something should happen,
+  $('.someClass').text(function() {  
+    
+    if ($(this).prev().find('li').length > 5) 
+        {
+  return $(this).prev().find('li').length - 5 + ' more item(s)'}
+        
+        }
 
-   
-    </script>
-    
-    
+
+      ) 
+
+</script> 
 {% endblock %}  

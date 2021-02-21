@@ -1,22 +1,38 @@
 {% extends "layout.html" %}
 {% block content %}	
-  <style>
+<style>
     h2 {width: 50%; margin: auto; text-align: center; padding: 20px;}
     form {width: 70%; padding: 20px; margin:auto; background-color:#f5f5f5;}
     .card { margin: auto; margin-bottom: 20px;}
     .new_form{ margin: 0; padding:0; background-color: white; display: inline; }
-    a, a:hover,a:visited, a:focus {text-decoration:none;}
- </style>
-  <h2 >Create task for {{title}}</h2>
+    select:focus > option:hover { 
+    background: white !important;
+}
+</style>
+<h2 >Create task for {{title}}</h2>
    <form  method="POST" class="border" name="submit">
       <div class="form-group">
-
-         <div class="form-check">
-
-            <input class="form-check-input" type="checkbox" name="whole_day" id="flexCheckChecked" checked onclick="myFunction()">
-            <label class="form-check-label" for="flexCheckChecked">
-              All day
-            </label>
+            <div class="row">
+               <!--<div class="col-2" >
+                  <select class="form-select" style="margin-top: 20px; text-align: center;" name ="color">
+                        <option selected  value ="black" style="color: black;">&#x25CF;</option>
+                        <option value="red" style="color: red;">&#x25CF;</option>
+                        <option value="blue" style="color:blue;">&#x25CF;</option>
+                        <option value="orange" style="color: orange;" >&#x25CF;</option>
+                        <option value="green" style="color: green;" >&#x25CF;</option>
+                        <option value="violet" style="color: violet;" >&#x25CF;</option>
+                  </select>
+               </div>
+            -->
+            <div class="col-2" style="align-items: center;">
+            <div class="form-check">
+               <label class="form-check-label" for="flexCheckChecked">
+                  All day
+                  </label>
+                  <input class="form-check-input" type="checkbox" name="whole_day" id="flexCheckChecked" checked onclick="myFunction()">
+             </div>
+            </div>
+             
           </div> 
           <div id="text" style="display:none"> 
             <div class="row">
@@ -31,7 +47,7 @@
                <div class="col-4">
                   <select class="form-select" aria-label="Default select example" style="margin-top: 20px;" name ="end_time" id="totime">
                      <option selected disabled>End time</option>
-                     {% for time in times %}
+                     {% for time in times[1:] %}
                      <option value="{{time}}" >{{time[11:16]}}</option>
                      {% endfor %}
                   </select>
@@ -43,10 +59,9 @@
          <input class="form-control" placeholder="forest larping" name="category" style="margin-top: 20px;">
          <textarea class="form-control"  rows="3" placeholder="chilling in män-tsälä like a real män" name="post" style="margin-top: 20px;"></textarea>
          <button class="btn btn-primary" style="margin-top: 20px;">Submit</button>
+     
       </div>
-      
-      
-   </form>
+ </form>
    <br> 
    {% if message  %}
    <div class="col-4 offset-4" style="margin-top: 20px;"> 
