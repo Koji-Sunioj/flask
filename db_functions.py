@@ -1,5 +1,7 @@
 import pymysql
-con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
+import pandas as pd
+
+con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 
 def home_crud_first():
 	con.connect()
@@ -14,7 +16,32 @@ def create_new_task(start_time,end_time,username,category,post):
 	insert_main = con.cursor()
 	insert_main.callproc('create_new_task',(start_time,end_time,username,category,post))
 	con.commit()
+
+def calendar_dashboard(username):
+	con.connect()
+	select_main = con.cursor()
+	select_main.callproc('calendar_dashboard',(username,))
+	con.commit()
+	rows = select_main.fetchall()
+
+	return rows
 	
+
+def check_calendar_data(date,username):
+	con.connect()
+	select_main = con.cursor()
+	select_main.callproc('check_calendar_data',(date,username))
+	con.commit()
+	rows = select_main.fetchall()
+	columns =  [i[0] for i in select_main.description]
+	cal_data = pd.DataFrame(rows)
+	if len(cal_data) == 0:
+		return cal_data
+	cal_data.columns = columns
+	cal_data = cal_data.sort_values('db_date')
+	cal_data = cal_data.set_index('db_date',drop=True)
+	return cal_data
+
 
 def covid_today():
 	con.connect()
