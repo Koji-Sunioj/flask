@@ -9,7 +9,7 @@ import pymysql
 import pycountry_convert as pc
 import db_functions
 import calendar
-con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
+con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
 from datetime import datetime,date,timedelta
 
 
