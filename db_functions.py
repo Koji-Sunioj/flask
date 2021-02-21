@@ -1,7 +1,7 @@
 import pymysql
 import pandas as pd
 
-con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
+con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
 
 def home_crud_first():
 	con.connect()
