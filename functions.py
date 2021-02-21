@@ -13,13 +13,13 @@ con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 from datetime import datetime,date,timedelta
 
 
-def home_dashboard(hometown):
+def home_dashboard(hometown,username):
 	social_header = db_functions.home_crud_first()
+	next_task = db_functions.calendar_dashboard(username)
 	url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/weatherdata/forecast?aggregateHours=24&combinationMethod=aggregate&contentType=json&unitGroup=metric&locationMode=single&key=NFL5M6IWKEWK1CTBV54KLQ9JR&dataElements=default&locations={}'.format(hometown)
 	response = requests.get(url)
 	data = response.json()
 	print(str(data['remainingCost']) + ' server requests remaining today')
-	
 	home_town = data['location']['id']
 	weather_summary =  data['location']['currentConditions']['icon']
 	forecast_time = data['location']['currentConditions']['datetime'][:10] + ' '+ data['location']['currentConditions']['datetime'][11:16]
@@ -28,7 +28,7 @@ def home_dashboard(hometown):
 	
 	summary = {'home_town': home_town,'summary':weather_summary,'forecast_time':forecast_time,'wind_chill':windchill,'temperature':temperature}
 	
-	return social_header,summary
+	return social_header,summary,next_task
 
 def test_graph(data):
 	graph = pygal.Line()
@@ -38,17 +38,48 @@ def test_graph(data):
 	graph_data = graph.render_data_uri()
 	return graph_data
 
-def make_calendar(date):
+def make_calendar(date,username=None):
 	stamp = pd.to_datetime(date)
 	stamp_ranger = pd.date_range(start='{}/1/{}'.format(stamp.month,stamp.year), end='{}/{}/{}'.format(stamp.month,stamp.days_in_month,stamp.year))
 	framer = pd.DataFrame(stamp_ranger.weekofyear.unique(),columns=['week'])
 	framer['year'] =  [stamp_ranger.year.unique().values[0] for i in framer.values ]
+	framer['diff'] = framer['week'].diff(periods=-1)
+	framer.loc[framer['diff'] > 1,'year'] = framer.loc[framer['diff'] > 1,'year'] - 1
 	new_stamper = pd.to_datetime(framer.week.astype(str)+'-'+framer.year.astype(str)+'-1' ,format='%V-%G-%u')
 	calender_list = [i + timedelta(days=int(s)) for s in np.arange(0,7) for i in new_stamper]
 	calender_list.sort()
+
+	cal_data = db_functions.check_calendar_data(date,username)
+	if any(cal_data):
+		cal_list = []
+		for date_string in calender_list:
+			if date_string in cal_data.index:
+				try:
+					cal_dict = {}
+					cal_dict['date'] = date_string
+					cal_dict['data'] = {}
+					if len(cal_data.loc[date_string]) > 1:  
+						for cal_id in cal_data.loc[date_string]['cal_id'].values:
+							cal_dict['data'][cal_id] = {'start_time': cal_data[cal_data['cal_id'] == cal_id].start_time[0],'end_time':cal_data[cal_data['cal_id'] == cal_id].end_time[0],'title':cal_data[cal_data['cal_id'] == cal_id].category[0]}    
+					cal_list.append(cal_dict)
+				except:
+					cal_dict = {}
+					cal_dict['date'] = date_string
+					cal_dict['data'] = {}
+					cal_dict['data'][cal_data.loc[date_string]['cal_id']] = {'start_time':cal_data.loc[date_string]['start_time'],'end_time':cal_data.loc[date_string]['end_time'],'title':cal_data.loc[date_string]['category']}
+					cal_list.append(cal_dict)
+			else:
+				cal_list.append(date_string)
+				
+		framer = pd.DataFrame(np.array(cal_list).reshape(len(framer),7),index = framer['week'])
+		framer.columns = [ calendar.day_name[i] for i in framer.columns]
+		title = stamp.strftime('%B %Y')
+		return title,framer.reset_index()
+	
 	framer = pd.DataFrame(np.array(calender_list).reshape(len(framer),7),index = framer['week'])
 	framer.columns = [ calendar.day_name[i] for i in framer.columns]
 	title = stamp.strftime('%B %Y')
+	print(framer)
 	return title,framer.reset_index()
 
 def get_weather(city):
@@ -180,3 +211,22 @@ def covid_frame(var_last):
 	
 	return update_values
 
+
+
+'''
+def make_calendar(date):
+	stamp = pd.to_datetime(date)
+	stamp_ranger = pd.date_range(start='{}/1/{}'.format(stamp.month,stamp.year), end='{}/{}/{}'.format(stamp.month,stamp.days_in_month,stamp.year))
+	framer = pd.DataFrame(stamp_ranger.weekofyear.unique(),columns=['week'])
+	framer['year'] =  [stamp_ranger.year.unique().values[0] for i in framer.values ]
+	new_stamper = pd.to_datetime(framer.week.astype(str)+'-'+framer.year.astype(str)+'-1' ,format='%V-%G-%u')
+	calender_list = [i + timedelta(days=int(s)) for s in np.arange(0,7) for i in new_stamper]
+	db_functions.check_calendar_data(date,session['username'])
+	calender_list.sort()
+	framer = pd.DataFrame(np.array(calender_list).reshape(len(framer),7),index = framer['week'])
+	framer.columns = [ calendar.day_name[i] for i in framer.columns]
+	title = stamp.strftime('%B %Y')
+	return title,framer.reset_index()
+
+
+'''

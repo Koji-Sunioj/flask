@@ -44,9 +44,21 @@
          <textarea class="form-control"  rows="3" placeholder="Taking over saturated selfies in Finnish forests" name="post"></textarea>
          <button class="btn btn-primary" style="margin-top: 20px;">Submit</button>
       </div>
-     
    </form>
    {% endif %}
+
+{% if message  %}
+   <div class="col-4 offset-4" style="margin-top: 20px;">
+     <p class="alert alert-success" role="alert">{{message}}
+   </div>
+ {% endif%}
+ {% if error_message %}
+ <div class="col-4 offset-4" style="margin-top: 20px;">
+   
+   <p class="alert alert-warning" role="alert">{{error_message}}</p>
+    </div> 
+   {% endif %}
+
 {% endif %}
 <!--cycle through posts from db-->
 <div style="width: 70%; margin:auto; margin-top: 20px;">
