@@ -4,7 +4,7 @@
 <div class="row" style="padding-top: 20px; ">
 {% if social_header %} 
 <div class="card col-3 offset-1"  style="width: 18rem;">
-  <a href="{{ url_for('crud')}}" style="text-align: center; color:blue; padding-top:20px; margin: 0px; " >Latest social media post</a>
+  <a href="{{ url_for('forum')}}" style="text-align: center; color:blue; padding-top:20px; margin: 0px; " >Latest social media post</a>
   <div class="card-body">
     <h6 class="card-title">{{social_header[0][0]}}</h6>
     <p class="card-text">{{social_header[0][1]}}.</p>
@@ -29,12 +29,8 @@
       <h6 class="card-title">{{next_task[0][2]}}</h5>
       <p class="card-text">{{next_task[0][3]}}</p>
       <p class="card-subtitle mb-2 text-muted">{{next_task[0][0].strftime('%b %d, %H:%M')}} to {{next_task[0][1].strftime('%H:%M')}}</p>
-      
     </div>
-    {% endif%}
-
-
-</div>
+{% endif%}
 </div>
 {% if message  %}
   <div class="col-4 offset-4" style="margin-top: 20px;">
