@@ -9,9 +9,15 @@ import pymysql
 import pycountry_convert as pc
 import db_functions
 import calendar
-con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
+con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 from datetime import datetime,date,timedelta
 
+
+def thread_page(thread):
+	thread=db_functions.thread_main(thread)
+	replies = db_functions.crud_thread_read(thread['id'])
+	reply_reply =db_functions.crud_reply_read(thread['id'])
+	return thread,replies,reply_reply
 
 def home_dashboard(hometown,username):
 	social_header = db_functions.home_crud_first()
@@ -30,13 +36,6 @@ def home_dashboard(hometown,username):
 	
 	return social_header,summary,next_task
 
-def test_graph(data):
-	graph = pygal.Line()
-	graph.title = data['name']
-	graph.x_labels = data['dates']
-	graph.add('data',  data['values'])
-	graph_data = graph.render_data_uri()
-	return graph_data
 
 def make_calendar(date,username=None):
 	stamp = pd.to_datetime(date)
@@ -212,21 +211,3 @@ def covid_frame(var_last):
 	return update_values
 
 
-
-'''
-def make_calendar(date):
-	stamp = pd.to_datetime(date)
-	stamp_ranger = pd.date_range(start='{}/1/{}'.format(stamp.month,stamp.year), end='{}/{}/{}'.format(stamp.month,stamp.days_in_month,stamp.year))
-	framer = pd.DataFrame(stamp_ranger.weekofyear.unique(),columns=['week'])
-	framer['year'] =  [stamp_ranger.year.unique().values[0] for i in framer.values ]
-	new_stamper = pd.to_datetime(framer.week.astype(str)+'-'+framer.year.astype(str)+'-1' ,format='%V-%G-%u')
-	calender_list = [i + timedelta(days=int(s)) for s in np.arange(0,7) for i in new_stamper]
-	db_functions.check_calendar_data(date,session['username'])
-	calender_list.sort()
-	framer = pd.DataFrame(np.array(calender_list).reshape(len(framer),7),index = framer['week'])
-	framer.columns = [ calendar.day_name[i] for i in framer.columns]
-	title = stamp.strftime('%B %Y')
-	return title,framer.reset_index()
-
-
-'''

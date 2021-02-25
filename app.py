@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, redirect, url_for, request,json,session,render_template
 import re
-from functions import covid_frame,test_graph,get_weather,make_calendar,home_dashboard
+from functions import covid_frame,get_weather,make_calendar,home_dashboard,thread_page
 import db_functions
 import datetime
 import pandas as pd
 import numpy as np
-import pygal
 import json
 import requests
 import re
@@ -14,7 +13,7 @@ import pymysql
 from dateutil.relativedelta import relativedelta
 from datetime import datetime,date,timedelta
 
-con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
+con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 
 #export FLASK_ENV=development
 
@@ -219,8 +218,34 @@ def crud_component():
 	crud_read = db_functions.crud_header()
 	return {'crud_read':crud_read}
 	
-@app.route('/crud/',methods=['POST','GET'])
-def crud():
+	
+@app.route('/forum/<thread>/',methods=['POST','GET'])
+def forum_thread(thread):
+	if request.method == 'POST':
+		if 'reply' in request.form: 
+				if any(request.form['reply']):
+					thread_id, reply,username = request.form['thread_id'], request.form['username'],request.form['reply']
+					db_functions.thread_reply(thread_id,reply,username)
+					thread,replies,reply_reply = thread_page(thread)
+					return render_template('thread.html',thread=thread,replies=replies,reply_reply= reply_reply)
+				else:
+					thread,replies,reply_reply = thread_page(thread)
+					error_message='please fill in the reply!'
+					return render_template('thread.html',thread=thread,replies=replies,reply_reply= reply_reply,error_message=error_message)
+		elif 'reply_to_replier' in request.form:
+			print(request.form)
+			input_reply = request.form['reply_to_replier']
+			input_username = request.form['session_to_replier']
+			input_reply_id = request.form['reply_to_reply_id']
+			db_functions.reply_reply(input_reply_id,input_username,input_reply)
+			thread,replies,reply_reply =thread_page(thread)
+			return render_template('thread.html',thread=thread,replies=replies,reply_reply= reply_reply)
+		
+	thread,replies,reply_reply = thread_page(thread)
+	return render_template('thread.html',thread=thread,replies=replies,reply_reply=reply_reply)
+	
+@app.route('/forum/',methods=['POST','GET'])
+def forum():
 	if request.method == 'POST':
 		if request.form.get('category'):
 			message = 'post added!'
@@ -228,28 +253,28 @@ def crud():
 			category = request.form['category']
 			post = request.form['post']
 			db_functions.crud_insert(category,post,username)
-			return render_template('crud.html',message=message)
+			return render_template('forum.html',message=message)
 		elif request.form.get('delete'):
 			message = 'post deleted!'
 			delete_id = request.form['delete']
 			db_functions.crud_delete(delete_id)
-			return render_template('crud.html',message=message)
+			return render_template('forum.html',message=message)
 		elif request.form.get('edit'):
 			edit_string = request.form['edit']
 			title, post = db_functions.crud_edit(edit_string)
-			return render_template('crud.html',title=title,post=post,edit_string=edit_string)
+			return render_template('forum.html',title=title,post=post,edit_string=edit_string)
 		elif request.form.get('update_post'):
 			message = 'post updated!'
 			edit_string = request.form['update_id']
 			update_cat = request.form['update_category']
 			update_post = request.form['update_post']
-			db_functions.crud_updatet(edit_string,update_cat,update_post)
-			return render_template('crud.html',message=message)
+			db_functions.crud_update(edit_string,update_cat,update_post)
+			return render_template('forum.html',message=message)
 		else:
 			print(session)
 			error_message = 'please fill in all fields!'
-			return render_template('crud.html',error_message=error_message)
-	return render_template('crud.html')	
+			return render_template('forum.html',error_message=error_message)
+	return render_template('forum.html')	
 
 @app.route('/weather/',methods = ['POST', 'GET']) 
 def enter_city(): 
