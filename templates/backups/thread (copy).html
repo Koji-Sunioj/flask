@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+<style>
+ form.border {width: 70%; padding: 20px; margin:auto; background-color:#f5f5f5;opacity: 50%;}
+</style>
+{% block content %}
+<h1>{{thread['author']}} wrote {{thread['title']}}</h1>
+   <div class="row"  style="width: 70%; margin:auto; margin-top: 20px;">
+      <div class="card">
+         <div class="card-body">
+         <p class="card-subtitle mb-2 text-muted"></p>
+         <h5 class="card-title">  {{thread['post']}}</h5>
+         <p class="card-subtitle mb-2 text-muted">{{thread['when_was']}} on {{thread['stamp']}}</p>
+         </div>
+      </div>
+   </div>
+<h1 >What do you think?</h1>
+   <form  method="POST" action="http://localhost:5000/forum/{{thread['id']}}/" class="border" name="submit" style="width: 70%; padding: 20px; margin:auto; background-color:#f5f5f5">
+      <div class="form-group">
+         <textarea class="form-control"  rows="3" placeholder="dude you sound mental" name="reply"></textarea>
+         <button class="btn btn-primary" style="margin-top: 20px;">Submit</button>
+         <input type="hidden" name="username" value="{{session['username']}}">
+         <input type="hidden" name="thread_id" value="{{thread['id']}}">
+      </div>
+   </form>
+{% if error_message %}
+   <div class="col-4 offset-4" style="margin-top: 20px;">
+      <p class="alert alert-warning" role="alert">{{error_message}}</p>
+   </div>
+{% endif %} 
+<h1>Other People Said</h1>
+{% if replies %}
+   {% for reply in replies %} 
+      <div class="row" style="width: 70%; margin:auto; margin-top: 20px;">
+         
+         <div class="card"> 
+            <div class="row">
+            <div class="card-body col-10">
+               <p class="card-subtitle mb-2 text-muted">{{reply[2]}} says</p>
+               <h5 class="card-title">  {{reply[3]}}</h5>
+               <p class="card-subtitle mb-2 text-muted">{{reply[5]}} on {{reply[4]}}</p>
+            
+             </div>
+             <div class="col-2" style="text-align: right;">
+                <p>{% if reply_reply %}{{reply_reply[reply[0]]|length}} replies {% endif %}
+               <button class="btn btn-link" style=" text-decoration: none; font-size: 20px; transform: rotate(90deg); box-shadow: none;" type="button" data-toggle="collapse" data-target="#collapseExample-{{reply[0]}}" aria-expanded="false" aria-controls="collapseExample-{{reply[0]}}">
+                  &#8227; 
+               </button>
+            </p></div>
+         </div>
+            
+            <div class="collapse" id="collapseExample-{{reply[0]}}" >
+               
+          {% if reply_reply %}
+         {% if  reply[0]  in reply_reply %}
+      
+            <div class="row" style="width: 50%; margin: auto;"> 
+               {% for comments in reply_reply[reply[0]] %} 
+                  <div class="card">
+                     <div class="card-body">
+                        <p class="card-subtitle mb-2 text-muted"> {{comments['username']}} told {{reply[2]}}</p>
+                        <h5 class="card-title">{{comments['reply']}}</h5>
+                        <p class="card-subtitle mb-2 text-muted">{{comments['when_was']}} on {{comments['stamp']}}</p>
+                     </div>
+                  </div>
+               {% endfor %}
+            </div>
+        {% endif %}
+      {% endif %}
+      <form  method="POST" action="http://localhost:5000/forum/{{thread['id']}}/" name="submit" >
+         <div class="input-group mb-3" >
+               <input type = "text" name = "reply_to_replier" class="form-control" >
+               <input type = "hidden" name = "session_to_replier" value="{{session['username']}}">
+               <input type = "hidden" name = "reply_to_reply_id" value = "{{reply[0]}}">
+               <button class="btn btn-primary" type="submit">Reply</button>
+            </div>
+      </form> 
+            </div>
+         </div>
+      
+</div>
+{% endfor %}
+
+
+{% endif %}
+
+
+{% endblock %} 

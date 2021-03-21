@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, redirect, url_for, request,json,session,render_template,jsonify
 import re
-from functions import get_weather,make_calendar,home_dashboard,thread_page,ago,get_page
+from functions import covid_frame,get_weather,make_calendar,home_dashboard,thread_page,ago
 import db_functions
 import datetime
 import pandas as pd
@@ -9,7 +9,6 @@ import numpy as np
 import json
 import requests
 import re
-import math
 import pymysql
 from dateutil.relativedelta import relativedelta
 from datetime import datetime,date,timedelta
@@ -19,7 +18,7 @@ con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 #export FLASK_ENV=development
 
 app = Flask(__name__)
-app.secret_key = 'ironpond'
+app.secret_key = 'any random string'
 
 @app.route('/login/', methods = ['POST', 'GET'])
 def login_page():
@@ -27,59 +26,21 @@ def login_page():
 		email_username = request.form['email_username']
 		password = request.form['password']
 		data = db_functions.check_user(email_username,password)
-		username = data[0][0]
-		email = data[0][1]
-		home_town = data[0][2]
-		session.permanent = True
-		session['username'] = username
-		session['hometown'] = home_town.split(',')[0]
-		session['log_time'] = datetime.now()
-		message = '{} succesfully logged in!'.format(username)
-		session['message'] = message
-		return redirect(url_for('index'))
+		if len(data) == 0:
+			error_message = 'wrong username and password!'
+			return render_template('login.html', error_message=error_message)
+		else:
+			username = data[0][0]
+			email = data[0][1]
+			home_town = data[0][2]
+			session['username'] = username
+			session['hometown'] = home_town
+			session['log_time'] = datetime.now()
+			message = '{} succesfully logged in!'.format(username)
+			session['message'] = message
+			return redirect(url_for('index'))
+			
 	return render_template('login.html')
-	
-
-@app.route('/user_validation', methods=['POST'])
-def user_validation():
-	email_username = request.form['email_username']
-	password = request.form['password']
-	data = db_functions.check_user(email_username,password)
-	if len(data) == 0:
-		return jsonify({'error':'no user found'})
-	return jsonify({'success':'user found'})
-
-@app.route('/create_profile/', methods = ['POST', 'GET'])
-def create_profile():
-	if request.method == 'POST':
-		email = request.form['email']
-		username = request.form['username']
-		home_town = request.form['home_town']
-		password = request.form['password']
-		db_functions.create_new_user(username,email,home_town,password)
-		message = 'username {} was succesfully created. now logged in!'.format(username)
-		session.permanent = True
-		session['username'] = username
-		session['message'] = message
-		session['hometown'] = home_town
-		session['log_time'] = datetime.now()
-		return redirect(url_for('index'))
-	return render_template('create_profile.html')
-
-
-@app.route('/profile_validation', methods=['POST'])
-def profile_validation():
-	username = request.form['username']
-	email = request.form['email']
-	data = db_functions.check_new_user(email,username)
-	if data:
-		return jsonify({'error':'that email or username is taken. please use a different one.'})
-	return jsonify({'success':'looks good'})
-
-@app.route("/<username>/")
-def user_profile(username):
-	user_profile = db_functions.user_profile_get(username)
-	return render_template("user_profile.html",user_profile=user_profile)
 
 
 @app.route("/")
@@ -98,7 +59,6 @@ def index():
 	elif 'username' in session:
 		diff_weather_log = session['log_time'] - datetime.strptime(session['weather_summary']['forecast_time'],'%Y-%m-%d %H:%M')
 		diff_weather_log = ((diff_weather_log.seconds//60))
-		print('difference between log time and forecast summary is %s'%diff_weather_log)
 		if diff_weather_log < 120:
 			social_header = db_functions.home_crud_first()
 			next_task = db_functions.calendar_dashboard(session['username'])
@@ -111,7 +71,6 @@ def index():
 			session['weather_summary'] = summary
 			return render_template("index.html",social_header=social_header,summary=summary,next_task=next_task)
 		else:
-			print('else')
 			social_header,summary,next_task = home_dashboard(session['hometown'],session['username'])
 			session['weather_summary'] = summary
 			return render_template("index.html",social_header=social_header,summary=summary,next_task=next_task)
@@ -149,6 +108,7 @@ def calendar(year_month,day):
 	day = pd.to_datetime(year_month +'-'+ day).strftime('%Y-%m-%d')
 	times = [str(pd.to_datetime(day) + timedelta(hours = int(i))) for i in np.arange(0,25)]
 	if request.method == 'POST':
+		print(request.form)
 		checked = [i == '' for i in request.form.values()]
 		try:
 			if any(checked) == True:
@@ -218,6 +178,40 @@ def logout():
 	return redirect(url_for('index'))
 
 
+
+
+
+	
+@app.route('/create_profile/', methods = ['POST', 'GET'])
+def create_profile():
+	if request.method == 'POST':
+		checked = [i == '' for i in request.form.values()]
+		if any(checked) == True:
+			error_message = 'please fill all the fields.'
+			return render_template('create_profile.html',error_message=error_message)
+		else:
+			email = request.form['email']
+			username = request.form['username']
+			home_town = request.form['home_town']
+			password = request.form['password']
+			data = db_functions.check_new_user(email,username)
+			if data:
+				error_message = 'that email or username is taken. please use a different one.'
+				return render_template('create_profile.html',error_message=error_message)
+			elif request.form['password'] != request.form['password_confirm']:
+				error_message = 'passwords do not match.'
+				return render_template('create_profile.html',error_message=error_message)
+			else:
+				db_functions.create_new_user(username,email,home_town,password)
+				#title,framer = make_calendar()
+				message = 'username {} was succesfully created. now logged in!'.format(username)
+				session['username'] = username
+				session['message'] = message
+				session['hometown'] = home_town
+				session['log_time'] = datetime.now()
+				return redirect(url_for('index'))
+	return render_template('create_profile.html')
+
 @app.context_processor
 def crud_component():
 	crud_read = db_functions.crud_header()
@@ -238,6 +232,7 @@ def forum_thread(thread):
 					error_message='please fill in the reply!'
 					return render_template('thread.html',thread=thread,replies=replies,reply_reply= reply_reply,error_message=error_message)
 		elif 'reply_to_replier' in request.form:
+			print(request.form)
 			input_reply = request.form['reply_to_replier']
 			input_username = request.form['session_to_replier']
 			input_reply_id = request.form['reply_to_reply_id']
@@ -275,6 +270,7 @@ def forum():
 			db_functions.crud_update(edit_string,update_cat,update_post)
 			return render_template('forum.html',message=message)
 		else:
+			print(session)
 			error_message = 'please fill in all fields!'
 			return render_template('forum.html',error_message=error_message)
 	return render_template('forum.html')	
@@ -295,6 +291,47 @@ def weather_city(city):
 	except:
 		message = 'forecast not found for {}.'.format(city)
 		return render_template("weather_city.html",message = message)
+		
+@app.route('/covid/', methods = ['POST', 'GET']) 
+def covid_request():
+	con.connect()
+	select = con.cursor()
+	statement = 'call date_compare();'
+	select.execute(statement)
+	var_last = select.fetchall()[0][0]
+	con.commit()
+	
+	if (date.today() - var_last).days <= 1:
+		country,cases,deaths,recovered,active,new,first,last = db_functions.covid_today()
+		print('no server call, db select executed')
+	else:
+		update_values = covid_frame(var_last)
+		if update_values == 0:
+			country,cases,deaths,recovered,active,new,first,last = db_functions.covid_today()
+		else:
+			country,cases,deaths,recovered,active,new,first,last = db_functions.covid_today()
+			print('db updated with {} values'.format(update_values))
+	
+	return render_template("covid.html",table = zip(country,cases,deaths,recovered,active,new),start=str(first),finish=str(last))
+
+@app.route("/pops")
+def db_load_pop():
+	con.connect()
+	select_main = con.cursor()
+	select_main.execute('call total_pop_2019')
+	rows = select_main.fetchall()
+	con.commit()
+	
+	municipality = []
+	population = []
+
+	for i in rows:
+		municipality.append(i[0])
+		population.append(i[1])
+
+	con.close()
+	return render_template("pops.html", pop_data = zip(municipality,population))
+
 
 @app.context_processor
 def inject_now():
@@ -327,168 +364,28 @@ def graph(chartID = 'population'):
 	return render_template('graph.html',chart_type=chart_type,population=population,municipality=municipality,title=columns[0],subtitle=columns[1])
 
 
-@app.route('/forum_validation', methods=['POST'])
-def forum_validation():
-	query = request.form['query']
-	data = db_functions.search_forums(query)
-	if not data:
-		return jsonify({'error':'umm yeah nothing'})
-	return jsonify({'success':'looks good'})
-	
-
-@app.route('/thread_edit_ajax', methods=['POST'])
-def thread_edit_ajax():
-	thread_id = request.form['thread_id']
-	edited_title = request.form['edited_title']
-	edited_post = request.form['edited_post']
-	db_functions.crud_update(thread_id,edited_title,edited_post)
-	return jsonify({'success':'done'})
-
-@app.route("/test/<int:page>/",methods=['GET','POST'])
-@app.route("/test/sort_by=<sort_key>&ascending=<ascending>/<int:page>",methods=['GET','POST'])
-def test(page,sort_key=None,ascending=None):
-	crud_read = db_functions.crud_header()
-	pages = math.ceil(len(crud_read) / 5)
-	pagination = np.arange(0,pages) + 1
-	if 'query' in request.form:
-		query = request.form['query']
-		return redirect(url_for('test_results',query=query,page=1))
-	elif 'post' in request.form:
-		title = request.form['title']
-		post = request.form['post']
-		username = session['username']
-		db_functions.crud_insert(title,post,username)
-		session['post_added'] = 'post added!'
-		return redirect(url_for('test',page=1))
-	elif 'title' in request.form:
-		if request.form['last']  == 'title':
-			ascending = not json.loads(ascending.lower())
-			return redirect(url_for('test',page=page,sort_key='title',ascending=ascending))
-		ascending= True
-		return redirect(url_for('test',page=page,sort_key='title',ascending=ascending))
-	elif 'username' in request.form:
-		if request.form['last']  == 'username':
-			ascending = not json.loads(ascending.lower())
-			return redirect(url_for('test',page=page,sort_key='username',ascending=ascending))
-		return redirect(url_for('test',page=page,sort_key='username',ascending=True))
-	elif 'stamp' in request.form:
-		if request.form['last']  == 'stamp':
-			ascending = not json.loads(ascending.lower())
-			return redirect(url_for('test',page=page,sort_key='stamp',ascending=ascending))
-		return redirect(url_for('test',page=page,sort_key='stamp',ascending=True))
-	elif sort_key and ascending:
-		new_table = get_page(page,crud_read,sort_key,ascending)
-		return render_template('test.html',new_table=new_table,pagination=pagination,current_page=page,last=sort_key,sort_key=sort_key,ascending=ascending)
-	new_table = get_page(page,crud_read)
-	if 'post_added' in session:
-		post_success = session['post_added']
-		session.pop('post_added',None)
-		return render_template('test.html',new_table=new_table,pagination=pagination,current_page=page,post_success=post_success)
-	return render_template('test.html',new_table=new_table,pagination=pagination,current_page=page)
-	
-	
-@app.route("/test/query=<query>/<int:page>/",methods=['GET','POST'])
-@app.route("/test/query=<query>&sort_by=<sort_key>&ascending=<ascending>/<int:page>",methods=['GET','POST'])
-def test_results(query,page,sort_key=None,ascending=None):
-	crud_read = db_functions.search_forums(query)
-	pages = math.ceil(len(crud_read) / 5)
-	pagination = np.arange(0,pages) + 1
-	if 'query' in request.form:
-		query = request.form['query']
-		return redirect(url_for('test_results',query=query,page=1))
-	elif 'post' in request.form:
-		title = request.form['title']
-		post = request.form['post']
-		username = session['username']
-		db_functions.crud_insert(title,post,username)
-		session['post_added'] = 'post added!'
-		'''
-		crud_read = db_functions.crud_header()
-		pages = math.ceil(len(crud_read) / 5)
-		pagination = np.arange(0,pages) + 1
-		new_table = get_page(1,crud_read)
-		return render_template('test.html',new_table=new_table,pagination=pagination,current_page=1,message='post added!')
-		'''
-		return redirect(url_for('test',page=1))
-	elif 'title' in request.form:
-		if request.form['last']  == 'title':
-			ascending = not json.loads(ascending.lower())
-			return redirect(url_for('test_results',query=query,page=page,sort_key='title',ascending=ascending))
-		ascending= True
-		return redirect(url_for('test_results',query=query,page=page,sort_key='title',ascending=ascending))
-	elif 'username' in request.form:
-		if request.form['last']  == 'username':
-			ascending = not json.loads(ascending.lower())
-			return redirect(url_for('test_results',query=query,page=page,sort_key='username',ascending=ascending))
-		ascending= True
-		return redirect(url_for('test_results',query=query,page=page,sort_key='username',ascending=ascending))
-	elif 'stamp' in request.form:
-		if request.form['last']  == 'stamp':
-			ascending = not json.loads(ascending.lower())
-			return redirect(url_for('test_results',query=query,page=page,sort_key='stamp',ascending=ascending))
-		ascending= True
-		return redirect(url_for('test_results',query=query,page=page,sort_key='stamp',ascending=ascending))
-	elif sort_key and ascending:
-		new_table = get_page(page,crud_read,sort_key,ascending)
-		return render_template('test_query.html',new_table=new_table,pagination=pagination,current_page=page,last=sort_key,sort_key=sort_key,ascending=ascending,query=query)
-	new_table = get_page(page,crud_read) 
-	return render_template('test_query.html',new_table=new_table,pagination=pagination,current_page=page,query=query)
-	
-
-
-    #print(url_for('login'))
-    #print(url_for('login', next='/'))
-    #print(url_for('profile', username='John Doe'))
-'''
-@app.route("/test/query=<query>/<int:page>/",methods=['GET','POST'])
-def test_results(query,page):
-	if request.form:
-		query = request.form['query']
-		return redirect(url_for('test_results',query=query,page=page))
-	crud_read = db_functions.search_forums(query)
-	pages = math.ceil(len(crud_read) / 5)
-	pagination = np.arange(0,pages) + 1
-	new_table = get_page(page,crud_read)  
-	return render_template('test_query.html',new_table=new_table,pagination=pagination,current_page=page,query=query)
-
-
-elif 'username' in request.form:
-	return redirect(url_for('test',page=page,sort_key='username',ascending=True))
-elif 'stamp' in request.form:
-	return redirect(url_for('test',page=page,sort_key='stamp',ascending=True))
-@app.route("/test/<int:page>/",methods=['GET','POST'])
-@app.route("/test/<int:page>/sort_by=<sort_key>&ascending=<ascending>",methods=['GET','POST'])
-def test(page,sort_key=False,ascending=False):
-	print(sort_key)
-	crud_read = db_functions.crud_header()
-	pages = math.ceil(len(crud_read) / 5)
-	pagination = np.arange(0,pages) + 1
-	if 'query' in request.form:
-		query = request.form['query']
-		return redirect(url_for('test_results',query=query,page=page))
-	elif 'title' in request.form:
-		return redirect(url_for('test',page=page,sort_key='title',ascending=True))
-	elif 'username' in request.form:
-		return redirect(url_for('test',page=page,sort_key='username'))
-	elif 'stamp' in request.form:
-		return redirect(url_for('test',page=page,sort_key='stamp'))
-	elif sort_key:
-		new_table = get_page(page,crud_read,sort_key,ascending)
-		return render_template('test.html',new_table=new_table,pagination=pagination,current_page=page)
-	new_table = get_page(page,crud_read)
-	return render_template('test.html',new_table=new_table,pagination=pagination,current_page=page)
-
-'''
-
-
-
-
 if (__name__ == "__main__"):
 	app.run(port = 5000, debug=True)
 
+'''ajax testing here'''
 
+@app.route("/test")
+def test():
+	return render_template('test.html')
 
-'''ajax testing here
+@app.route('/process', methods=['POST'])
+def process():
+	print(request.form)
+	name = request.form['name']
+	con.connect()
+	db_connect = con.cursor()
+	statement = "select * from geo_data.users where username ='{}';".format(name)
+	db_connect.execute(statement)
+	rows = db_connect.fetchone()
+	if rows:
+		data = {'username':rows[0],'email':rows[1],'hometown':rows[4]}
+		return jsonify({'name':data['username'],'hometown':data['hometown']})
+	return jsonify({'errorr' : 'Missing data!'})
 
 
 @app.route('/processpost', methods=['POST'])
@@ -535,47 +432,3 @@ def testforum():
 			error_message = 'please fill in all fields!'
 			return render_template('testforum.html',error_message=error_message)
 	return render_template('testforum.html')	
-	
-		
-@app.route('/covid/', methods = ['POST', 'GET']) 
-def covid_request():
-	con.connect()
-	select = con.cursor()
-	statement = 'call date_compare();'
-	select.execute(statement)
-	var_last = select.fetchall()[0][0]
-	con.commit()
-	
-	if (date.today() - var_last).days <= 1:
-		country,cases,deaths,recovered,active,new,first,last = db_functions.covid_today()
-		print('no server call, db select executed')
-	else:
-		update_values = covid_frame(var_last)
-		if update_values == 0:
-			country,cases,deaths,recovered,active,new,first,last = db_functions.covid_today()
-		else:
-			country,cases,deaths,recovered,active,new,first,last = db_functions.covid_today()
-			print('db updated with {} values'.format(update_values))
-	
-	return render_template("covid.html",table = zip(country,cases,deaths,recovered,active,new),start=str(first),finish=str(last))
-
-@app.route("/pops")
-def db_load_pop():
-	con.connect()
-	select_main = con.cursor()
-	select_main.execute('call total_pop_2019')
-	rows = select_main.fetchall()
-	con.commit()
-	
-	municipality = []
-	population = []
-
-	for i in rows:
-		municipality.append(i[0])
-		population.append(i[1])
-
-	con.close()
-	return render_template("pops.html", pop_data = zip(municipality,population))
-
-
-'''

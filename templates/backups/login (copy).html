@@ -1,0 +1,29 @@
+
+{% extends "layout.html" %}
+  {% block content %}
+  <style>
+       form {width: 70%; padding: 20px; margin:auto; background-color:#f5f5f5;}
+    .card { margin: auto; margin-bottom: 20px;}
+    a, a:hover,a:visited, a:focus {text-decoration:none;}
+ </style>
+  <h2 >Login Page</h2>
+   <form  method="POST" class="border">
+      <div class="form-group">
+         <input class="form-control" placeholder="username or email" name="email_username">
+         <input class="form-control" type="password" placeholder="password" name="password"style="margin-top: 20px;">
+         <button class="btn btn-primary" style="margin-top: 20px;">Log in</button>
+      </div>
+      
+      
+   </form>
+   <div class="col" style="margin-top: 20px; text-align: center;">
+        <a href="{{url_for('create_profile')}}" style="color: white;">Don't have an account? Get registered here.</a> 
+   </div>
+   <br>
+   {% if error_message %}
+   <div class="alert alert-warning" role="alert">
+      {{error_message}}
+   </div> 
+   
+   {% endif %}
+{% endblock %}  

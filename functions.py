@@ -5,6 +5,8 @@ import requests
 import numpy as np
 import re
 import pygal
+import pandas
+import numpy
 import pymysql
 import pycountry_convert as pc
 import db_functions
@@ -12,6 +14,60 @@ import calendar
 con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 from datetime import datetime,date,timedelta
 
+
+def get_page(page,crud_table,sort_key=None,direction=None,last=None):
+	crud_table = pd.DataFrame(crud_table)
+	crud_table.columns = ['id','title','post','stamp','when_was','username'] 
+	if sort_key and direction:
+		direction = json.loads(direction.lower())
+		crud_table = crud_table.sort_values(by=[sort_key],ascending=direction)
+		crud_table = crud_table.reset_index(drop=True)
+	rows = 5
+	max_page = rows * page
+	indexer = np.arange(max_page - 5,max_page)
+	new_table = crud_table.loc[indexer[0]:indexer[-1]]
+	return new_table
+
+def ago(time):
+	num_months = (datetime.now().year - time.year) * 12 + (datetime.now().month - time.month)
+	if num_months <1:
+		difference = datetime.now() - time
+		if difference.days == 0:
+			hours = int(difference.seconds / 3600)
+			if hours > 1:
+				time_string = '{} hours ago'.format(hours)
+				return time_string
+			elif hours == 1:
+				time_string = '{} hour ago'.format(hours)
+				return time_string
+			elif hours == 0:
+				minutes = ((difference.seconds//60)%60)
+				if minutes > 0:
+					time_string = '{} minutes ago'.format(((difference.seconds//60)%60) )
+					return time_string
+				else:
+					time_string = 'now'
+					return time_string
+		elif difference.days > 1:
+			time_string = '{} days ago'.format(difference.days)
+			return time_string
+		else:
+			time_string = 'yesterday'
+			return time_string
+	elif num_months > 11:
+		years = datetime.now().year - time.year
+		if years == 1:
+			time_string = 'last year'
+			return time_string
+			time_string = '{} years ago'.format(years)
+			return time_string
+	elif num_months > 1:
+		time_string = '{} months ago'.format(num_months)
+		return time_string
+	elif num_months == 1:
+		time_string = 'last month'
+		return time_string
+	return time
 
 def thread_page(thread):
 	thread=db_functions.thread_main(thread)
@@ -25,7 +81,7 @@ def home_dashboard(hometown,username):
 	url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/weatherdata/forecast?aggregateHours=24&combinationMethod=aggregate&contentType=json&unitGroup=metric&locationMode=single&key=NFL5M6IWKEWK1CTBV54KLQ9JR&dataElements=default&locations={}'.format(hometown)
 	response = requests.get(url)
 	data = response.json()
-	print(str(data['remainingCost']) + ' server requests remaining today')
+	#print(str(data['remainingCost']) + ' server requests remaining today')
 	home_town = data['location']['id']
 	weather_summary =  data['location']['currentConditions']['icon']
 	forecast_time = data['location']['currentConditions']['datetime'][:10] + ' '+ data['location']['currentConditions']['datetime'][11:16]
@@ -78,7 +134,6 @@ def make_calendar(date,username=None):
 	framer = pd.DataFrame(np.array(calender_list).reshape(len(framer),7),index = framer['week'])
 	framer.columns = [ calendar.day_name[i] for i in framer.columns]
 	title = stamp.strftime('%B %Y')
-	print(framer)
 	return title,framer.reset_index()
 
 def get_weather(city):
@@ -86,7 +141,7 @@ def get_weather(city):
 	url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/weatherdata/forecast?aggregateHours=24&combinationMethod=aggregate&contentType=json&unitGroup=metric&locationMode=single&key=NFL5M6IWKEWK1CTBV54KLQ9JR&dataElements=default&locations={}'.format(city)
 	response = requests.get(url)
 	data = response.json()
-	print(str(data['remainingCost']) + ' server requests remaining today')
+	#print(str(data['remainingCost']) + ' server requests remaining today')
 	server_city = data['location']['address']
 	#create lists for forecast table
 	maxt = [i['maxt'] for i in data['location']['values']]

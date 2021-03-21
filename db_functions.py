@@ -1,5 +1,8 @@
 import pymysql
 import pandas as pd
+import datetime
+from geopy.geocoders import Nominatim
+geolocator = Nominatim(user_agent="flask_app_koji")
 
 con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 
@@ -8,6 +11,7 @@ con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 def connect():
 	con.connect()
 	db_connect = con.cursor()
+	print(con)
 	return db_connect
 
 
@@ -18,6 +22,7 @@ def check_user(email_username,password):
 	select_main.callproc('check_email_password',(email_username,password))
 	rows = select_main.fetchall()
 	con.commit()
+	con.close()
 	return rows
 
 def check_new_user(email,username):
@@ -25,26 +30,48 @@ def check_new_user(email,username):
 	select_main.callproc('check_new_user',(email,username,))
 	rows = select_main.fetchall()
 	con.commit()
+	con.close()
 	return rows
 
 def create_new_user(username,email,home_town,password):
 	insert_main = connect()
-	insert_main.callproc('create_new_user',(username,email,home_town,password))
+	try:
+		location = geolocator.geocode(home_town)
+		hometown = location.raw['display_name']
+	except:
+		hometown = 'unknown'
+	insert_main.callproc('create_new_user',(username,email,hometown,password))
 	con.commit()
+	
+	
+def user_profile_get(username):
+	try:
+		select_main = connect()
+		select_main.callproc('user_profile_get',(username,))
+		rows = select_main.fetchone()
+		user_profile = {'username':rows[0],'email':rows[1],'created':rows[2],'hometown':rows[3],'password':rows[4]}
+		con.commit()
+		return user_profile
+	except:
+		return None
 
 '''blog functions'''
 
 def crud_header():
-	select_main = connect()
+	con.connect()
+	select_main = con.cursor()
 	select_main.execute('call crud_read()')
 	crud_read = select_main.fetchall()
 	con.commit()
+	con.close()
 	return crud_read
 
 def crud_insert(category,post,username):
 	insert_main = connect()
 	insert_main.callproc('crud_create',(category,post,username))
 	con.commit()
+	success = 'done'
+	return success
 
 def crud_delete(delete_id):
 	delete_main = connect()
@@ -66,6 +93,15 @@ def crud_update(edit_string,update_cat,update_post):
 	con.commit()
 
 '''thread functions'''
+
+
+def search_forums(query):
+	select_main = connect() 
+	select_main.callproc('search_forums',(query,))
+	rows = select_main.fetchall()
+	#thread = {'id':rows[0][0], 'title':rows[0][1],'post':rows[0][2],'stamp':rows[0][3],'when_was':rows[0][4],'author':rows[0][5]}
+	con.commit()
+	return rows
 
 
 def thread_main(thread_id):
