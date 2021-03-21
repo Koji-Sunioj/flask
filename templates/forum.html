@@ -2,18 +2,18 @@
 
 {% block content %}
 <style>
-   h2 {width: 50%; margin: auto; text-align: center; padding: 20px; color: white;}
-   form {width: 70%; padding: 20px; margin:auto; background-color:#f5f5f5;}
-  
-   .new_form{ margin: 0; padding:0; background-color: white; display: inline; }
-   a, a:hover,a:visited, a:focus {
+form {width: 70%; padding: 20px; margin:auto; background-color:#f5f5f5;}
+ a, a:hover,a:visited, a:focus 
+{
     text-decoration:none;
 }
-
-
-.forum_link,.forum_link:hover { color:black;}
+.forum_link,.forum_link:hover 
+{ 
+   color:black;
+}
 </style>
-<!--if edit is requested, render this form-->
+
+
 {% if edit_string %}
    <h2 >Update a Post</h2>
    <form  method="POST" action="http://localhost:5000/forum/" class="border" name="update_to_db">
@@ -29,7 +29,6 @@
             <a href="{{ url_for('forum')}}" class="btn btn-primary" role="button" >Cancel</a>
          </div>
    </form>
-      
 {% else %}
 <!--if else, render blank form-->
 
@@ -52,42 +51,55 @@
    <div class="col-4 offset-4" style="margin-top: 20px;">
      <p class="alert alert-success" role="alert">{{message}}
    </div>
- {% endif%}
- {% if error_message %}
- <div class="col-4 offset-4" style="margin-top: 20px;">
-   
+{% endif%}
+
+{% if error_message %}
+<div class="col-4 offset-4" style="margin-top: 20px;">
    <p class="alert alert-warning" role="alert">{{error_message}}</p>
-    </div> 
-   {% endif %}
+</div> 
+{% endif %}
 
 {% endif %}
-<!--cycle through posts from db-->
-<div style="width: 70%; margin:auto; margin-top: 20px;">
+<div  class="row" style="width: 70%; margin:auto; margin-top: 20px;">
 {% for id,category,post,date,when_was,username in crud_read %}  
    <div class="card" >
-      <div class="card-body">
-      
-         <h5 class="card-title">{{username}}</h5>
-    <a href="{{ url_for('forum_thread',thread=id)}}" class="forum_link"> 
-         <p class="card-text"><strong>{{category}}</strong></p>
-         <p class="card-text"  style=" padding-bottom: 20px;">{{post}}</p>
-      </a>
-         <p class="card-subtitle mb-2 text-muted">{{when_was}}: {{date}}</p>    
-        {% if  username == session['username']%}
-         <form class="new_form" method="POST" action="http://localhost:5000/forum/" name="update" >
-            <input type="hidden" value="{{id}}" name="edit">
-            <input type="submit" class="btn btn-link" style="text-decoration: none; padding: none;" value="edit">
-         </form>
-         <form class="new_form" method="POST" action="http://localhost:5000/forum/" name="remove" >
-            <input type="hidden" value="{{id}}" name="delete">
-            <input type="submit" class="btn btn-link" style="text-decoration: none;  padding: none;" value="delete">
-         </form>
+      <div class="row">
+         <div class="card-body col-10">
+            {% if  username == session['username']%} 
+            <h5 class="card-title" style="color: blue;">{{username}}</h5>
+            {% else %}
+            <h5 class="card-title" >{{username}}</h5>
+            {% endif%}
+            
+            <a href="{{ url_for('forum_thread',thread=id)}}" class="forum_link"> 
+               <p class="card-text"><strong>{{category}}</strong></p>
+               <p class="card-text"  style=" padding-bottom: 20px;">{{post}}</p>
+            </a>
+            <p class="card-subtitle mb-2 text-muted">{{when_was}}: {{date}}</p> 
+         </div>
+         {% if  username == session['username']%}
+            <div class="dropdown col-2" style="text-align: right; background-color: white;" >
+
+               <button class="btn btn-link dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"></button>
+               <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                  <a class="dropdown-item" >
+                     <form class="new_form" method="POST" action="http://localhost:5000/forum/" name="update" style="background-color: inherit; padding: 0px;margin:0px;width: 100%; ">
+                        <input type="hidden" value="{{id}}" name="edit">
+                        <input type="submit" class="btn" style="width: 100%;" value="edit">
+                     </form>
+                  </a>
+                  <a class="dropdown-item" >
+                     <form class="new_form" method="POST" action="http://localhost:5000/forum/" name="remove" style="background-color: inherit; padding: 0px;margin:0px;width: 100%; "> 
+                        <input type="hidden" value="{{id}}" name="delete">
+                        <input type="submit" class="btn"  value="delete" style="width: 100%;">
+                     </form>
+                  </a>
+               </div>
+               
+            </div>
          {% endif %}
-   
-      </div>  
+         </div>  
    </div>  
-      
 {% endfor %}
 </div>
-   
 {% endblock %} 

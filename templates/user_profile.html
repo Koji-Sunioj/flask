@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row"  >
+<div class="card" id="user_profile" >
+   
+   <div class="card-body">
+     <h5 class="card-title">{{user_profile['username']}}</h5>
+     <p class="card-text">{{user_profile['hometown']}}</p>
+     <p class="card-text">{{user_profile['email']}}</p>
+     <p class="card-text text-muted">joined: {{user_profile['created']|string|truncate(10, False, '', 0)}}</p>
+   </div>
+ </div>
+ </div>
+{% endblock %} 
