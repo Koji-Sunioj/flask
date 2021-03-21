@@ -1,15 +1,9 @@
 
 {% extends "layout.html" %}
-  {% block content %}
-  <style>
-    h2 {width: 50%; margin: auto; text-align: center; padding: 20px;}
-    form {width: 70%; padding: 20px; margin:auto; background-color:#f5f5f5;}
-    .card { margin: auto; margin-bottom: 20px;}
-    .new_form{ margin: 0; padding:0; background-color: white; display: inline; }
-    a, a:hover,a:visited, a:focus {text-decoration:none;}
- </style>
+{% block content %}
+ <body onload="create_profile()">
   <h2 >Create user profile</h2>
-   <form  method="POST" class="border" name="submit">
+   <form  method="POST" class="border" name="submit" id="create_profile_form">
       <div class="form-group">
          <input class="form-control" placeholder="username" name="username">
          <br>
@@ -23,12 +17,9 @@
          <br>
       </div>
       <button class="btn btn-primary">Submit</button>
-      
    </form>
    <br>
-   {% if error_message %}
-   <div class="alert alert-warning" role="alert">
-      {{error_message}}
+   <div class="alert alert-warning" role="alert" id="create_error" style="display: none;">
     </div> 
-   {% endif %}
+</body>
 {% endblock %}  
