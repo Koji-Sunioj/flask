@@ -14,7 +14,7 @@ import pymysql
 from dateutil.relativedelta import relativedelta
 from datetime import datetime,date,timedelta
 
-con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
+con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
 
 #export FLASK_ENV=development
 
