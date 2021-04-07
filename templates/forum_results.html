@@ -2,7 +2,7 @@
 
 {% block content %}
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-<script type="text/javascript" src="Scripts/bootstrap.min.js"></script>
+
 <div class="modal fade" id="myModal">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -43,7 +43,7 @@
       <div class="input-group mb-3" >
         <button class="btn btn-primary" type="submit">search!</button>
         <input type = "text" name = "query" class="form-control" placeholder='results for "{{query}}"' >
-        <a class="btn btn-primary" role="button" href="{{ url_for('test',page=1) }}">clear</a>
+        <a class="btn btn-primary" role="button" href="{{ url_for('forum',page=1) }}">clear</a>
       </div>
       
     </form>
@@ -55,7 +55,7 @@
   </div>
   </div>
 <body onload="search_check()"> 
-<div class="table-responsive" style="padding-top:20px;">
+<div class="table-responsive" style="padding-top:20px;overflow: visible;">
     <table class="table table-border mb-0">
         <thead >
             <tr>
@@ -84,62 +84,62 @@
             </tr>
         </thead>
         <tbody>
-          {% for post in new_table.values %}
-          <tr>
-            {% if session['username'] == post[-1] %}
-              <td style="width: 33%;"><strong>{{ post[1] }}</strong></td>
+          <tbody>
+            {% for post in new_table.values %}
+            <tr class="data_table">
+              <td style="width: 33%;"><a href="{{ url_for('forum_thread',thread=post[0])}}" style="text-decoration: none;color: black;"><strong>{{post[1]}}</strong></a></td>
               <td style="width: 33%;">{{ post[-1] }}</td>
               <td style="width: 33%;">
-                <div class="row" style="width: 100%;">
-                  <div class="col-9" style="text-align: right; ">
-                    {{post[3]}}
-                    <input type="hidden" value="{{post[0]}}" name = "thread_id">
-                    <input type="hidden" value="{{post[2]}}" name = "post">
+              {% if session['username'] == post[-1] %}
+                  <div class="row" style="width: 100%;">
+                    <div class="col-9" style="text-align: right; ">
+                      <p style="display: inline;"> {{post[3]}}</p>
+                      <input type="hidden" value="{{post[0]}}" name = "thread_id">
+                      <input type="hidden" value="{{post[2]}}" name = "post">
+                    </div>
+                    <div class="dropdown col-3 text-center" style="display: inline; padding: 0px;">
+                      <button class="btn btn-link dropdown-toggle" style="text-decoration: none;line-height: 50%; width: 100%;" id="dropdownMenuButton1" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      </button>
+                      <ul class="dropdown-menu dropdown-edit_form" aria-labelledby="dropdownMenuButton1" id="dropdown" style="text-align: center;">
+                        <li ><a class="dropdown-item" href="#" name="edit">edit</a></li>
+                        <li ><a class="dropdown-item" href="#" name="delete">delete</a></li>
+                      </ul>
+                    </div>
                   </div>
-                  <div class="dropdown col-3 text-center" style="display: inline; padding: 0px;">
-                    <button class="btn btn-link dropdown-toggle" style="text-decoration: none;line-height: 50%; width: 100%;" id="dropdownMenuButton1" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    </button>
-                    <ul class="dropdown-menu dropdown-edit_form" aria-labelledby="dropdownMenuButton1" id="dropdown" style="text-align: center;">
-                      <li ><a class="dropdown-item" href="#" name="edit">edit</a></li>
-                      <li ><a class="dropdown-item" href="#" name="delete">delete</a></li>
-                    </ul>
-                  </div>
-                </div>
-              </td>
-            {% else %}
-              <td style="width: 33%;"><strong>{{ post[1] }}</strong></td>
-              <td style="width: 33%;">{{ post[-1] }}</td>
-              <td style="width: 33%;">
+                {% else %}
                 <div class="row" style="width: 100%;">
                   <div class="col-9" style="text-align: right;">
                     {{ post[3] }}
                   </div>
-                 
                 </div>
-              </td>
-             
-            {% endif %}
-          </tr>
-          {% endfor %}
+                {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
       </tbody>
     </table>
 </div>
 </body>
 
-
-
-{% for page_number in pagination %}
-
-{% if current_page == page_number%}
-<a >{{page_number}}</a>
-{% else %}
-{% if sort_key %}
-<a href="{{ url_for('test_results',query=query,page=page_number,sort_key=sort_key,ascending=ascending) }}">{{page_number}}</a>
-{% else %}
-<a href="{{ url_for('test_results',query=query,page=page_number) }}">{{page_number}}</a>
-{% endif %}
-{% endif %}
+{% for page_number in pagination %} 
+  {% if current_page == page_number%}
+    <a>{{page_number}}</a>
+  {% else %}
+    {% if sort_key %}
+      <a href="{{ url_for('forum_results',query=query,page=page_number,sort_key=sort_key,ascending=ascending) }}">{{page_number}}</a>
+    {% else %}
+      <a href="{{ url_for('forum_results',query=query,page=page_number) }}">{{page_number}}</a>
+    {% endif %}
+  {% endif %}
 {% endfor %}
-<div class="alert alert-warning" id="query_error" style="display: none; width: 70%; margin: auto;">
+<div class="alert alert-warning" id="query_message" style="display: none; width: 70%; margin: auto;">
 </div> 
+
+{% if post_removed %}
+  <div class="alert alert-success" style="width: 70%; margin: auto;">
+    {{post_removed}}
+  </div> 
+{% endif %}
+
 {% endblock %} 

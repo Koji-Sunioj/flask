@@ -1,25 +1,38 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, redirect, url_for, request,json,session,render_template,jsonify
+from werkzeug.utils import secure_filename
 import re
-from functions import get_weather,make_calendar,home_dashboard,thread_page,ago,get_page
+from functions import get_weather,make_calendar,home_dashboard,thread_page,ago,get_page,make_day,tax_year_header
+from google_get import main
 import db_functions
 import datetime
 import pandas as pd
 import numpy as np
 import json
+from pandas.tseries.offsets import DateOffset
 import requests
 import re
+import os
+from PIL import Image
 import math
 import pymysql
 from dateutil.relativedelta import relativedelta
 from datetime import datetime,date,timedelta
-
 con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 
 #export FLASK_ENV=development
 
+UPLOAD_FOLDER = '/home/kokogabriel/Desktop/Python/flask_projects/flask_exp_fix/static/storage'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.secret_key = 'ironpond'
+
+@app.after_request
+def add_header(response):
+    response.cache_control.max_age = 0
+    return response
 
 @app.route('/login/', methods = ['POST', 'GET'])
 def login_page():
@@ -30,12 +43,15 @@ def login_page():
 		username = data[0][0]
 		email = data[0][1]
 		home_town = data[0][2]
+		role = data[0][3]
 		session.permanent = True
 		session['username'] = username
 		session['hometown'] = home_town.split(',')[0]
 		session['log_time'] = datetime.now()
+		session['role'] = role
 		message = '{} succesfully logged in!'.format(username)
 		session['message'] = message
+		print(session)
 		return redirect(url_for('index'))
 	return render_template('login.html')
 	
@@ -76,14 +92,24 @@ def profile_validation():
 		return jsonify({'error':'that email or username is taken. please use a different one.'})
 	return jsonify({'success':'looks good'})
 
-@app.route("/<username>/")
+@app.route("/<username>/",methods = ['POST', 'GET']) 
 def user_profile(username):
+	if request.method == 'POST':
+		username=session['username']
+		file = request.files['file']
+		file.save(os.path.join(app.config['UPLOAD_FOLDER'], session['username']))
+		session['avatar_updated'] = 'avatar updated!'
+		return redirect(url_for('user_profile',username=username))
 	user_profile = db_functions.user_profile_get(username)
+	if 'avatar_updated' in session:
+		avatar_updated = session['avatar_updated']
+		session.pop('avatar_updated',None)
+		return render_template("user_profile.html",user_profile=user_profile,avatar_updated=avatar_updated)
 	return render_template("user_profile.html",user_profile=user_profile)
 
-
-@app.route("/")
+@app.route("/",methods=['GET','POST'])
 def index():
+	
 	if 'message' in session:
 		message = session['message']
 		session.pop('message', None)
@@ -104,7 +130,8 @@ def index():
 			next_task = db_functions.calendar_dashboard(session['username'])
 			summary = session['weather_summary']
 			session['log_time'] = datetime.now()
-			return render_template("index.html",social_header=social_header,summary=summary,next_task=next_task)
+			message = {'greeting':'Hello from Flask!'}
+			return render_template("index.html",social_header=social_header,summary=summary,next_task=next_task,text=json.dumps(message))
 		elif diff_weather_log > 120:
 			social_header,summary,next_task = home_dashboard(session['hometown'],session['username'])
 			session['log_time'] = datetime.now()
@@ -117,98 +144,116 @@ def index():
 			return render_template("index.html",social_header=social_header,summary=summary,next_task=next_task)
 	else:
 		return render_template("index.html")
+		
+		
+@app.route('/contract_validation', methods=['POST'])
+def contract_validation():
+	employer = request.form['employer']
+	paydate_month_offset = int(request.form['paydate_month_offset'])
+	try:
+		db_functions.tax_contract_create(session['username'],employer,paydate_month_offset)
+		#contracts = db_functions.tax_contract_get(session['username'])
+		return jsonify({'success':'creation successful'})
+	except:
+		return jsonify({'error':'duplicate entry or error'})
+	
+@app.route('/year_validation/', methods=['POST'])
+def year_validation():
+	years = ["2019","2020","2021"]
+	employer = request.form['search_parameter']
+	if 'contract' in request.form:
+		return jsonify({'fail':'no employer'})
+	check_inserted = [len(db_functions.check_inserted_data_v2(str(pd.to_datetime(year)),session['username'],employer)) for year in years]
+	print(check_inserted)
+	year_dict = [{"year":year ,"inserted":check} for year,check in zip(years,check_inserted)]
+	print(year_dict)
+	year_dict = json.dumps(year_dict)
+	return year_dict
+	
+
+@app.route("/tax-year/",methods=['POST','GET'])
+def tax_year():
+	if request.method == 'POST':
+		print(request.form)
+		
+		'''
+		if 'search_parameter' in request.form:
+			query = request.form['search_parameter']
+			year = pd.to_datetime(request.form['year'])
+			start = (year - relativedelta(months=1))
+			end = (start + relativedelta(years=1))
+			google_frame = main(start.isoformat()+'Z',end.isoformat()+'Z',query)
+			google_frame['username'] = session['username']
+			google_frame = google_frame.sort_index()
+			google_frame = google_frame[(google_frame.index < pd.to_datetime(datetime.now().strftime('%Y-%m')))]
+			google_frame = google_frame.reset_index(drop=True)
+			google_frame = google_frame.drop(columns=['cal_id'])
+			google_frame = google_frame[['start_time','end_time','username','category','title']]
+			db_functions.deposit_google_tasks(google_frame)
+			return redirect(url_for("tax_year"))
+		elif 'reappend' in request.form:
+			reappend = pd.read_pickle('reappend_db.pkl')
+			db_functions.deposit_google_tasks(reappend)
+		'''
+		return redirect(url_for("tax_year"))
+	contracts = db_functions.tax_contract_get(session['username'])
+	times = np.arange(0,25)
+	if contracts: 
+		contracts = [{'employer':i[2],'paydate_offset':i[3]} for i in contracts]
+		years = [2019,2020,2021]
+		tax_years_frame = tax_year_header(session['username'],years,contracts)
+		return render_template("tax_year.html",tax_years_frame=tax_years_frame,contracts=[i['employer'] for i in contracts])
+	return render_template("tax_year.html",times=times)
 
 @app.route("/calendar/<date>",methods = ['POST', 'GET'])
 def home_calendar(date):
 	date = datetime.strptime(date,'%Y-%m')
-	if request.method == 'POST':
-		date = request.form['date']
-		year_month = datetime.strptime(date,'%Y-%m-%d').strftime('%Y-%m')
-		day = datetime.strptime(date,'%Y-%m-%d').strftime('%d')
-		return redirect(url_for('calendar',year_month=year_month,day=day))
-	else:
-		if 'username' in session:
-			state = 'enabled'
-			title,framer = make_calendar(date,session['username'])
-			next_month = date + relativedelta(months=1)
-			prev_month =  date - relativedelta(months=1)
-			if 'message' in session:
-				message = session['message']
-				session.pop('message',None)
-				return render_template("calendar.html",framer=framer,title=title,date=date,next_month=next_month,prev_month=prev_month,state=state,message=message)
-			else:
-				return render_template("calendar.html",framer=framer,title=title,date=date,next_month=next_month,prev_month=prev_month,state=state)
+	if 'username' in session:
+		state = 'enabled'
+		title,framer = make_calendar(date,session['username'],session['role'])
+		next_month = date + relativedelta(months=1)
+		prev_month =  date - relativedelta(months=1)
+		if 'message' in session:
+			message = session['message']
+			session.pop('message',None)
+			return render_template("calendar.html",framer=framer,title=title,next_month=next_month,prev_month=prev_month,state=state,message=message)
 		else:
-			title,framer = make_calendar(date)
-			next_month = date + relativedelta(months=1)
-			prev_month =  date - relativedelta(months=1)
-			return render_template("calendar.html",framer=framer,title=title,date=date,next_month=next_month,prev_month=prev_month,state='disabled')
+			return render_template("calendar.html",framer=framer,title=title,next_month=next_month,prev_month=prev_month,state=state)
+			
+	title,framer = make_calendar(date)
+	next_month = date + relativedelta(months=1)
+	prev_month =  date - relativedelta(months=1)
+	return render_template("calendar.html",framer=framer,title=title,next_month=next_month,prev_month=prev_month,state='disabled')
 
 @app.route("/calendar/<year_month>/<day>",methods = ['POST', 'GET'])
 def calendar(year_month,day):
 	day = pd.to_datetime(year_month +'-'+ day).strftime('%Y-%m-%d')
 	times = [str(pd.to_datetime(day) + timedelta(hours = int(i))) for i in np.arange(0,25)]
 	if request.method == 'POST':
-		checked = [i == '' for i in request.form.values()]
-		try:
-			if any(checked) == True:
-				message = 'please mark all fields!'
-				day_data = db_functions.check_day_tasks(day,session['username'])
-				title = datetime.strptime(day,'%Y-%m-%d').strftime('%A, %B %d,%Y')
-				return render_template("to_do.html",title=title,times=times,day_data=day_data,message=message)
-				
-			else:
-				if 'whole_day' in request.form:
-					if db_functions.check_day_tasks(day,session['username']):
-						message = '{} tasks already exists for those times!'.format(len(db_functions.check_day_tasks(day,session['username'])))
-						day_data = db_functions.check_day_tasks(day,session['username'])
-						title = datetime.strptime(day,'%Y-%m-%d').strftime('%B %d,%Y')
-						return render_template("to_do.html",title=title,times=times,day_data=day_data,message=message)
-					else:
-						start_time = datetime.strptime(day,'%Y-%m-%d')
-						end_time = start_time + timedelta(hours = 24)
-						username = session['username']
-						category = request.form['category']
-						post = request.form['post']
-						message = 'task {} added on {} for the whole day!'.format(category,day)
-						session['message'] = message
-						db_functions.create_new_task(start_time,end_time,username,category,post)
-						return redirect(url_for('home_calendar',date=year_month))
-				elif 'start_time' and 'end_time' in request.form:
-					start_time = request.form['start_time']
-					end_time = request.form['end_time']
-					username = session['username']
-					category = request.form['category']
-					post = request.form['post']
-					date_string = pd.date_range(start_time,end_time,freq='H').astype(str).to_list()[:-1]
-					day_data = pd.DataFrame(db_functions.check_day_tasks(day,session['username']))
-					check_slots = [any(item in date_string for item in pd.date_range(i[0],i[1],freq='H').astype(str).to_list()[:-1])  for i in day_data[day_data.columns[0:2]].values]
-					if any(check_slots):
-						message = '{} tasks already exists for those times!'.format(sum(check_slots))
-						day_data = db_functions.check_day_tasks(day,session['username'])
-						title = datetime.strptime(day,'%Y-%m-%d').strftime('%B %d,%Y')
-						return render_template("to_do.html",title=title,times=times,day_data=day_data,message=message)
-					else:
-						message = 'task {} for {} between {} and {}'.format(category,day,pd.to_datetime(start_time).strftime('%H:%M'),pd.to_datetime(end_time).strftime('%H:%M'))
-						session['message'] = message
-						db_functions.create_new_task(start_time,end_time,username,category,post)
-						return redirect(url_for('home_calendar',date=year_month))
-				elif 'start_time' or 'end_time'  not in request.form:
-					message = 'please mark all fields!'
-					day_data = db_functions.check_day_tasks(day,session['username'])
-					title = datetime.strptime(day,'%Y-%m-%d').strftime('%A, %B %d,%Y')
-					return render_template("to_do.html",title=title,times=times,day_data=day_data,message=message)
-		except:
-			message = 'please mark all fields!'
-			day_data = db_functions.check_day_tasks(day,session['username'])
-			title = datetime.strptime(day,'%Y-%m-%d').strftime('%A, %B %d,%Y')
-			return render_template("to_do.html",title=title,times=times,day_data=day_data,message=message)
-	
-	day_data = db_functions.check_day_tasks(day,session['username'])
+		if 'whole_day' in request.form:
+			start_time = datetime.strptime(day,'%Y-%m-%d')
+			end_time = start_time + timedelta(hours = 24)
+			username = session['username']
+			category = request.form['category']
+			title = request.form['title']
+			message = '{} doing {} added on {} for the whole day!'.format(category,title,day)
+			session['message'] = message
+			db_functions.create_new_task(start_time,end_time,username,category,title)
+			return redirect(url_for('home_calendar',date=year_month))
+		elif 'start_time' and 'end_time' in request.form:
+			start_time = request.form['start_time']
+			end_time = request.form['end_time']
+			username = session['username']
+			category = request.form['category']
+			title = request.form['title']
+			message = '{} doing {} for {} between {} and {} created!'.format(category,title,day,pd.to_datetime(start_time).strftime('%H:%M'),pd.to_datetime(end_time).strftime('%H:%M'))
+			session['message'] = message
+			db_functions.create_new_task(start_time,end_time,username,category,title)
+			return redirect(url_for('home_calendar',date=year_month))
+	day_data = make_day(day,session['username'],session['role'])
 	title = datetime.strptime(day,'%Y-%m-%d').strftime('%A, %B %d,%Y')
-	return render_template("to_do.html",title=title,times=times,day_data=day_data)
-
-
+	is_future = datetime.strptime(str(date.today()),'%Y-%m-%d') <= (datetime.strptime(day,'%Y-%m-%d'))
+	return render_template("to_do.html",title=title,times=times,day_data=day_data,is_future=is_future)
 
 @app.route('/logout/')
 def logout():
@@ -223,61 +268,6 @@ def crud_component():
 	crud_read = db_functions.crud_header()
 	return {'crud_read':crud_read}
 	
-	
-@app.route('/forum/<thread>/',methods=['POST','GET'])
-def forum_thread(thread):
-	if request.method == 'POST':
-		if 'reply' in request.form: 
-				if any(request.form['reply']):
-					thread_id, reply,username = request.form['thread_id'], request.form['username'],request.form['reply']
-					db_functions.thread_reply(thread_id,reply,username)
-					thread,replies,reply_reply = thread_page(thread)
-					return render_template('thread.html',thread=thread,replies=replies,reply_reply= reply_reply)
-				else:
-					thread,replies,reply_reply = thread_page(thread)
-					error_message='please fill in the reply!'
-					return render_template('thread.html',thread=thread,replies=replies,reply_reply= reply_reply,error_message=error_message)
-		elif 'reply_to_replier' in request.form:
-			input_reply = request.form['reply_to_replier']
-			input_username = request.form['session_to_replier']
-			input_reply_id = request.form['reply_to_reply_id']
-			db_functions.reply_reply(input_reply_id,input_username,input_reply)
-			thread,replies,reply_reply =thread_page(thread)
-			return render_template('thread.html',thread=thread,replies=replies,reply_reply= reply_reply)
-		
-	thread,replies,reply_reply = thread_page(thread)
-	return render_template('thread.html',thread=thread,replies=replies,reply_reply=reply_reply)
-	
-@app.route('/forum/',methods=['POST','GET'])
-def forum():
-	if request.method == 'POST':
-		if request.form.get('category'):
-			message = 'post added!'
-			username = session['username']
-			category = request.form['category']
-			post = request.form['post']
-			db_functions.crud_insert(category,post,username)
-			return render_template('forum.html',message=message)
-		elif request.form.get('delete'):
-			message = 'post deleted!'
-			delete_id = request.form['delete']
-			db_functions.crud_delete(delete_id)
-			return render_template('forum.html',message=message)
-		elif request.form.get('edit'):
-			edit_string = request.form['edit']
-			title, post = db_functions.crud_edit(edit_string)
-			return render_template('forum.html',title=title,post=post,edit_string=edit_string)
-		elif request.form.get('update_post'):
-			message = 'post updated!'
-			edit_string = request.form['update_id']
-			update_cat = request.form['update_category']
-			update_post = request.form['update_post']
-			db_functions.crud_update(edit_string,update_cat,update_post)
-			return render_template('forum.html',message=message)
-		else:
-			error_message = 'please fill in all fields!'
-			return render_template('forum.html',error_message=error_message)
-	return render_template('forum.html')	
 
 @app.route('/weather/',methods = ['POST', 'GET']) 
 def enter_city(): 
@@ -315,16 +305,7 @@ def page_not_found(e):
 	error = e
 	return render_template('404.html',error=error), 404
 
-
-'''testing highcharts here'''
-
-
-@app.route('/graph/')
-def graph(chartID = 'population'):
-	columns,municipality,population = db_functions.top_10_pop()
-	chart_type = 'column'
-	title = 'hello'
-	return render_template('graph.html',chart_type=chart_type,population=population,municipality=municipality,title=columns[0],subtitle=columns[1])
+'''forum prototyping'''
 
 
 @app.route('/forum_validation', methods=['POST'])
@@ -344,141 +325,146 @@ def thread_edit_ajax():
 	db_functions.crud_update(thread_id,edited_title,edited_post)
 	return jsonify({'success':'done'})
 
-@app.route("/test/<int:page>/",methods=['GET','POST'])
-@app.route("/test/sort_by=<sort_key>&ascending=<ascending>/<int:page>",methods=['GET','POST'])
-def test(page,sort_key=None,ascending=None):
+@app.route("/forum/<int:page>/",methods=['GET','POST'])
+@app.route("/forum/sort_by=<sort_key>&ascending=<ascending>/<int:page>/",methods=['GET','POST'])
+def forum(page,sort_key=None,ascending=None):
 	crud_read = db_functions.crud_header()
 	pages = math.ceil(len(crud_read) / 5)
 	pagination = np.arange(0,pages) + 1
 	if 'query' in request.form:
 		query = request.form['query']
-		return redirect(url_for('test_results',query=query,page=1))
+		return redirect(url_for('forum_results',query=query,page=1))
 	elif 'post' in request.form:
 		title = request.form['title']
 		post = request.form['post']
 		username = session['username']
 		db_functions.crud_insert(title,post,username)
 		session['post_added'] = 'post added!'
-		return redirect(url_for('test',page=1))
+		return redirect(url_for('forum',page=1))
+	elif 'thread_id' in request.form:
+		thread_id = request.form['thread_id']
+		db_functions.crud_delete(thread_id)
+		if len(get_page(page,crud_read)) == 1:
+			page = page - 1
+		session['post_deleted'] = 'post deleted!'
+		return redirect(url_for('forum',page=page,sort_key=sort_key,ascending=ascending))
 	elif 'title' in request.form:
 		if request.form['last']  == 'title':
 			ascending = not json.loads(ascending.lower())
-			return redirect(url_for('test',page=page,sort_key='title',ascending=ascending))
+			return redirect(url_for('forum',page=page,sort_key='title',ascending=ascending))
 		ascending= True
-		return redirect(url_for('test',page=page,sort_key='title',ascending=ascending))
+		return redirect(url_for('forum',page=page,sort_key='title',ascending=ascending))
 	elif 'username' in request.form:
 		if request.form['last']  == 'username':
 			ascending = not json.loads(ascending.lower())
-			return redirect(url_for('test',page=page,sort_key='username',ascending=ascending))
-		return redirect(url_for('test',page=page,sort_key='username',ascending=True))
+			return redirect(url_for('forum',page=page,sort_key='username',ascending=ascending))
+		return redirect(url_for('forum',page=page,sort_key='username',ascending=True))
 	elif 'stamp' in request.form:
 		if request.form['last']  == 'stamp':
 			ascending = not json.loads(ascending.lower())
-			return redirect(url_for('test',page=page,sort_key='stamp',ascending=ascending))
-		return redirect(url_for('test',page=page,sort_key='stamp',ascending=True))
+			return redirect(url_for('forum',page=page,sort_key='stamp',ascending=ascending))
+		return redirect(url_for('forum',page=page,sort_key='stamp',ascending=True))
 	elif sort_key and ascending:
 		new_table = get_page(page,crud_read,sort_key,ascending)
-		return render_template('test.html',new_table=new_table,pagination=pagination,current_page=page,last=sort_key,sort_key=sort_key,ascending=ascending)
+		if 'post_deleted' in session:
+			post_removed = session['post_deleted']
+			session.pop('post_deleted',None)
+			return render_template('forum.html',new_table=new_table,pagination=pagination,current_page=page,last=sort_key,sort_key=sort_key,ascending=ascending,post_removed=post_removed)
+		return render_template('forum.html',new_table=new_table,pagination=pagination,current_page=page,last=sort_key,sort_key=sort_key,ascending=ascending)
 	new_table = get_page(page,crud_read)
 	if 'post_added' in session:
 		post_success = session['post_added']
 		session.pop('post_added',None)
-		return render_template('test.html',new_table=new_table,pagination=pagination,current_page=page,post_success=post_success)
-	return render_template('test.html',new_table=new_table,pagination=pagination,current_page=page)
+		return render_template('forum.html',new_table=new_table,pagination=pagination,current_page=page,post_success=post_success)
+	elif 'post_deleted' in session:
+		post_removed = session['post_deleted']
+		session.pop('post_deleted',None)
+		return render_template('forum.html',new_table=new_table,pagination=pagination,current_page=page,post_removed=post_removed)
+	return render_template('forum.html',new_table=new_table,pagination=pagination,current_page=page)
 	
 	
-@app.route("/test/query=<query>/<int:page>/",methods=['GET','POST'])
-@app.route("/test/query=<query>&sort_by=<sort_key>&ascending=<ascending>/<int:page>",methods=['GET','POST'])
-def test_results(query,page,sort_key=None,ascending=None):
+@app.route("/forum/query=<query>/<int:page>/",methods=['GET','POST'])
+@app.route("/forum/query=<query>&sort_by=<sort_key>&ascending=<ascending>/<int:page>/",methods=['GET','POST'])
+def forum_results(query,page,sort_key=None,ascending=None):
 	crud_read = db_functions.search_forums(query)
 	pages = math.ceil(len(crud_read) / 5)
 	pagination = np.arange(0,pages) + 1
 	if 'query' in request.form:
 		query = request.form['query']
-		return redirect(url_for('test_results',query=query,page=1))
+		return redirect(url_for('forum_results',query=query,page=1))
 	elif 'post' in request.form:
 		title = request.form['title']
 		post = request.form['post']
 		username = session['username']
 		db_functions.crud_insert(title,post,username)
 		session['post_added'] = 'post added!'
-		'''
-		crud_read = db_functions.crud_header()
-		pages = math.ceil(len(crud_read) / 5)
-		pagination = np.arange(0,pages) + 1
-		new_table = get_page(1,crud_read)
-		return render_template('test.html',new_table=new_table,pagination=pagination,current_page=1,message='post added!')
-		'''
-		return redirect(url_for('test',page=1))
+		return redirect(url_for('forum',page=1))
+	elif 'thread_id' in request.form:
+		thread_id = request.form['thread_id']
+		db_functions.crud_delete(thread_id)
+		if len(get_page(page,crud_read)) == 1:
+			page = page - 1
+		session['post_deleted'] = 'post deleted!'
+		return redirect(url_for('forum_results',query=query,page=page,sort_key=sort_key,ascending=ascending))
 	elif 'title' in request.form:
 		if request.form['last']  == 'title':
 			ascending = not json.loads(ascending.lower())
-			return redirect(url_for('test_results',query=query,page=page,sort_key='title',ascending=ascending))
+			return redirect(url_for('forum_results',query=query,page=page,sort_key='title',ascending=ascending))
 		ascending= True
-		return redirect(url_for('test_results',query=query,page=page,sort_key='title',ascending=ascending))
+		return redirect(url_for('forum_results',query=query,page=page,sort_key='title',ascending=ascending))
 	elif 'username' in request.form:
 		if request.form['last']  == 'username':
 			ascending = not json.loads(ascending.lower())
-			return redirect(url_for('test_results',query=query,page=page,sort_key='username',ascending=ascending))
+			return redirect(url_for('forum_results',query=query,page=page,sort_key='username',ascending=ascending))
 		ascending= True
-		return redirect(url_for('test_results',query=query,page=page,sort_key='username',ascending=ascending))
+		return redirect(url_for('forum_results',query=query,page=page,sort_key='username',ascending=ascending))
 	elif 'stamp' in request.form:
 		if request.form['last']  == 'stamp':
 			ascending = not json.loads(ascending.lower())
-			return redirect(url_for('test_results',query=query,page=page,sort_key='stamp',ascending=ascending))
+			return redirect(url_for('forum_results',query=query,page=page,sort_key='stamp',ascending=ascending))
 		ascending= True
-		return redirect(url_for('test_results',query=query,page=page,sort_key='stamp',ascending=ascending))
+		return redirect(url_for('forum_results',query=query,page=page,sort_key='stamp',ascending=ascending))
 	elif sort_key and ascending:
 		new_table = get_page(page,crud_read,sort_key,ascending)
-		return render_template('test_query.html',new_table=new_table,pagination=pagination,current_page=page,last=sort_key,sort_key=sort_key,ascending=ascending,query=query)
-	new_table = get_page(page,crud_read) 
-	return render_template('test_query.html',new_table=new_table,pagination=pagination,current_page=page,query=query)
-	
-
-
-    #print(url_for('login'))
-    #print(url_for('login', next='/'))
-    #print(url_for('profile', username='John Doe'))
-'''
-@app.route("/test/query=<query>/<int:page>/",methods=['GET','POST'])
-def test_results(query,page):
-	if request.form:
-		query = request.form['query']
-		return redirect(url_for('test_results',query=query,page=page))
-	crud_read = db_functions.search_forums(query)
-	pages = math.ceil(len(crud_read) / 5)
-	pagination = np.arange(0,pages) + 1
-	new_table = get_page(page,crud_read)  
-	return render_template('test_query.html',new_table=new_table,pagination=pagination,current_page=page,query=query)
-
-
-elif 'username' in request.form:
-	return redirect(url_for('test',page=page,sort_key='username',ascending=True))
-elif 'stamp' in request.form:
-	return redirect(url_for('test',page=page,sort_key='stamp',ascending=True))
-@app.route("/test/<int:page>/",methods=['GET','POST'])
-@app.route("/test/<int:page>/sort_by=<sort_key>&ascending=<ascending>",methods=['GET','POST'])
-def test(page,sort_key=False,ascending=False):
-	print(sort_key)
-	crud_read = db_functions.crud_header()
-	pages = math.ceil(len(crud_read) / 5)
-	pagination = np.arange(0,pages) + 1
-	if 'query' in request.form:
-		query = request.form['query']
-		return redirect(url_for('test_results',query=query,page=page))
-	elif 'title' in request.form:
-		return redirect(url_for('test',page=page,sort_key='title',ascending=True))
-	elif 'username' in request.form:
-		return redirect(url_for('test',page=page,sort_key='username'))
-	elif 'stamp' in request.form:
-		return redirect(url_for('test',page=page,sort_key='stamp'))
-	elif sort_key:
-		new_table = get_page(page,crud_read,sort_key,ascending)
-		return render_template('test.html',new_table=new_table,pagination=pagination,current_page=page)
+		if 'post_deleted' in session:
+			post_removed = session['post_deleted']
+			session.pop('post_deleted',None)
+			return render_template('forum_results.html',new_table=new_table,pagination=pagination,current_page=page,last=sort_key,sort_key=sort_key,ascending=ascending,query=query,post_removed=post_removed)
+		return render_template('forum_results.html',new_table=new_table,pagination=pagination,current_page=page,last=sort_key,sort_key=sort_key,ascending=ascending,query=query)
 	new_table = get_page(page,crud_read)
-	return render_template('test.html',new_table=new_table,pagination=pagination,current_page=page)
+	if 'post_deleted' in session:
+		post_removed = session['post_deleted']
+		session.pop('post_deleted',None)
+		return render_template('forum_results.html',new_table=new_table,pagination=pagination,current_page=page,query=query,post_removed=post_removed) 
+	return render_template('forum_results.html',new_table=new_table,pagination=pagination,current_page=page,query=query)
+	
+@app.route('/forum/thread/<int:thread>/',methods=['POST','GET'])
+def forum_thread(thread):
+	print(thread)
+	if request.method == 'POST':
+		if 'reply' in request.form: 
+				if any(request.form['reply']):
+					thread_id, reply,username = request.form['thread_id'], request.form['username'],request.form['reply']
+					db_functions.thread_reply(thread_id,reply,username)
+					thread,replies,reply_reply = thread_page(thread)
+					return render_template('thread.html',thread=thread,replies=replies,reply_reply= reply_reply)
+				else:
+					thread,replies,reply_reply = thread_page(thread)
+					error_message='please fill in the reply!'
+					return render_template('thread.html',thread=thread,replies=replies,reply_reply= reply_reply,error_message=error_message)
+		elif 'reply_to_replier' in request.form:
+			input_reply = request.form['reply_to_replier']
+			input_username = request.form['session_to_replier']
+			input_reply_id = request.form['reply_to_reply_id']
+			db_functions.reply_reply(input_reply_id,input_username,input_reply)
+			thread,replies,reply_reply =thread_page(thread)
+			return render_template('thread.html',thread=thread,replies=replies,reply_reply= reply_reply)
+		
+	thread,replies,reply_reply = thread_page(thread)
+	return render_template('thread.html',thread=thread,replies=replies,reply_reply=reply_reply)
+	
+'''testing highcharts here'''
 
-'''
 
 
 
@@ -486,96 +472,63 @@ def test(page,sort_key=False,ascending=False):
 if (__name__ == "__main__"):
 	app.run(port = 5000, debug=True)
 
-
-
-'''ajax testing here
-
-
-@app.route('/processpost', methods=['POST'])
-def processpost():
-	if any([i for i in request.form.values()]) == False:
-		return jsonify({'error':'please fill all fields'})
-	username = session['username']
-	category = request.form['category']
-	post = request.form['post']
-	ident = 2
-	date  =datetime.now()
-	when_was = 'created'
-	#db_functions.crud_insert(category,post,username)
-	
-	return jsonify({'username':username,'category':category,'post':post,'id':ident,'date':date,'when_was':when_was,'success':'post added' })
-
-@app.route("/testforum/",methods=['POST','GET'])
-def testforum():
-	if request.method == 'POST':
-		if request.form.get('category'):
-			message = 'post added!'
-			username = session['username']
-			category = request.form['category']
-			post = request.form['post']
-			db_functions.crud_insert(category,post,username)
-			return render_template('testforum.html',message=message)
-		elif request.form.get('delete'):
-			message = 'post deleted!'
-			delete_id = request.form['delete']
-			db_functions.crud_delete(delete_id)
-			return render_template('testforum.html',message=message)
-		elif request.form.get('edit'):
-			edit_string = request.form['edit']
-			title, post = db_functions.crud_edit(edit_string)
-			return render_template('testforum.html',title=title,post=post,edit_string=edit_string)
-		elif request.form.get('update_post'):
-			message = 'post updated!'
-			edit_string = request.form['update_id']
-			update_cat = request.form['update_category']
-			update_post = request.form['update_post']
-			db_functions.crud_update(edit_string,update_cat,update_post)
-			return render_template('testforum.html',message=message)
-		else:
-			error_message = 'please fill in all fields!'
-			return render_template('testforum.html',error_message=error_message)
-	return render_template('testforum.html')	
-	
-		
-@app.route('/covid/', methods = ['POST', 'GET']) 
-def covid_request():
-	con.connect()
-	select = con.cursor()
-	statement = 'call date_compare();'
-	select.execute(statement)
-	var_last = select.fetchall()[0][0]
-	con.commit()
-	
-	if (date.today() - var_last).days <= 1:
-		country,cases,deaths,recovered,active,new,first,last = db_functions.covid_today()
-		print('no server call, db select executed')
-	else:
-		update_values = covid_frame(var_last)
-		if update_values == 0:
-			country,cases,deaths,recovered,active,new,first,last = db_functions.covid_today()
-		else:
-			country,cases,deaths,recovered,active,new,first,last = db_functions.covid_today()
-			print('db updated with {} values'.format(update_values))
-	
-	return render_template("covid.html",table = zip(country,cases,deaths,recovered,active,new),start=str(first),finish=str(last))
-
-@app.route("/pops")
-def db_load_pop():
-	con.connect()
-	select_main = con.cursor()
-	select_main.execute('call total_pop_2019')
-	rows = select_main.fetchall()
-	con.commit()
-	
-	municipality = []
-	population = []
-
-	for i in rows:
-		municipality.append(i[0])
-		population.append(i[1])
-
-	con.close()
-	return render_template("pops.html", pop_data = zip(municipality,population))
-
-
 '''
+@app.route('/graph/')
+def graph(chartID = 'population'):
+	columns,municipality,population = db_functions.top_10_pop()
+	chart_type = 'column'
+	title = 'hello'
+	return render_template('graph.html',chart_type=chart_type,population=population,municipality=municipality,title=columns[0],subtitle=columns[1])
+
+	if any(check_inserted[:-1]):
+		tax_years = db_functions.tax_years_get(session['username'])
+		tax_years_append = main(pd.to_datetime(datetime.today().strftime('%Y-%m')).isoformat() + 'Z')
+		tax_years = tax_years.append(tax_years_append[['start_time','end_time']])
+		tax_years['total_hours'] = (tax_years['end_time'] - tax_years['start_time']).dt.seconds / 3600
+		monthly = tax_years.resample('m').sum().round(2)
+		monthly['post_to'] = monthly.index + DateOffset(months=1)
+		true_month_slicer = tax_years.index.to_period('M').to_timestamp('M').unique()
+		monthly = monthly[(monthly.index.isin(true_month_slicer))]
+		tax_years_frame = [monthly[monthly['post_to'].dt.year == int(year)].drop(columns=['post_to']).reset_index().to_html(classes='table',table_id=int(year), header=True,index=False) for year in years if not monthly[monthly['post_to'].dt.year == int(year)].empty] 
+		return render_template("tax_year.html",year_dict=year_dict,tax_years_frame=tax_years_frame)
+	tax_years_append = main(pd.to_datetime(datetime.today().strftime('%Y-%m')).isoformat() + 'Z')
+	tax_years_append['total_hours'] = (tax_years_append['end_time'] - tax_years_append['start_time']).dt.seconds / 3600
+	tax_years_append = [tax_years_append.resample('m').sum().round(2).reset_index().to_html(classes='table',table_id=int(datetime.today().year), header=True,index=False)]
+	return render_template("tax_year.html",year_dict=year_dict,tax_years_frame=tax_years_append)
+	
+	@app.route("/tax-year/",methods=['POST','GET'])
+def tax_year():
+	if request.method == 'POST':
+		if 'search_parameter' in request.form:
+			query = request.form['search_parameter']
+			year = pd.to_datetime(request.form['year'])
+			start = (year - relativedelta(months=1))
+			end = (start + relativedelta(years=1))
+			google_frame = main(start.isoformat()+'Z',end.isoformat()+'Z',query)
+			google_frame['username'] = session['username']
+			google_frame = google_frame.sort_index()
+			google_frame = google_frame[(google_frame.index < pd.to_datetime(datetime.now().strftime('%Y-%m')))]
+			google_frame = google_frame.reset_index(drop=True)
+			google_frame = google_frame.drop(columns=['cal_id'])
+			google_frame = google_frame[['start_time','end_time','username','category','title']]
+			db_functions.deposit_google_tasks(google_frame)
+			return redirect(url_for("tax_year"))
+		elif 'reappend' in request.form:
+			reappend = pd.read_pickle('reappend_db.pkl')
+			db_functions.deposit_google_tasks(reappend)
+			return redirect(url_for("tax_year"))
+	contracts = db_functions.tax_contract_get(session['username'])
+	if contracts: 
+		contracts = [i[2] for i in contracts]
+		years = ['2019','2020','2021']
+		for year in years:
+			for con in contracts:
+				print(db_functions.check_inserted_data_v2(str(pd.to_datetime(year)),session['username'],con))
+		#	print(db_functions.check_inserted_data_v2(str(pd.to_datetime(year)),session['username'],employer))
+		check_inserted = [len(db_functions.check_inserted_data(str(pd.to_datetime(year)),session['username'])) >=12  for year in years]
+		year_dict = [{'year':year ,'inserted':check} for year,check in zip(years,check_inserted)]
+		tax_years_frame = tax_year_header(session['username'],years)
+		return render_template("tax_year.html",year_dict=year_dict,tax_years_frame=tax_years_frame,contracts=contracts)
+	return render_template("tax_year.html")
+	
+	'''

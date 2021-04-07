@@ -9,9 +9,12 @@
  hr {margin: 5px;}
 </style>
 {% block content %}
-<div class="row"  style="width: 70%; margin:auto; margin-top: 20px; padding: 0px;">
+<body onload="thread()">
+
+<div class="row"  style="width: 70%; margin:auto; margin-top: 20px; padding: 0px; ">
    <div class="card" style="margin: 0px;">
       <div class="card-body">
+         <img class="card-img-top"  id="author_avatar" src="{{ url_for('static', filename='storage/'+thread['author']) }}" onerror="this.src='/static/storage/default_avatar.png'"  style="width: 100px; width: 100px;border-radius: 50%;">
          <p class="card-subtitle mb-2 text-muted">{{thread['author']}} {{thread['stamp']|render_ago}}</p>
          <h5 class="card-title">{{thread['title']}}</h5>
          <p class="card-text">{{thread['post']}}</p>
@@ -34,7 +37,7 @@
             <p class="card-subtitle mb-2 text-muted">{{reply[2]}} {{reply[4]|render_ago}}</p>
         
             {% if reply[2] == session['username'] %}  
-            <form method="POST" action="http://localhost:5000/forum/{{thread['id']}}/" name="submit">
+            <form method="POST" action="http://localhost:5000/forum/thread/{{thread['id']}}/" name="submit">
                 <p  class="card-title" contenteditable="true">  {{reply[3]}}</p >
             </form>
             {% else %}
@@ -71,7 +74,7 @@
                 
                   <div id = "{{reply[0]}}" >
                   
-                     <form  method="POST" action="http://localhost:5000/forum/{{thread['id']}}/" name="submit"  >
+                     <form  method="POST" action="http://localhost:5000/forum/thread/{{thread['id']}}/"  name="submit"  >
                         <div class="input-group mb-3">
                            <input type = "text" name = "reply_to_replier" class="form-control"  placeholder="write comment!" style="background-color: #f2f2f2;">
                            <input type = "hidden" name = "session_to_replier" value="{{session['username']}}" >
@@ -95,7 +98,7 @@
 
 {% endfor %}
 {% endif %}
-<form  method="POST" action="http://localhost:5000/forum/{{thread['id']}}/" class="border" name="submit" style="width: 70%; padding: 20px; margin:auto; background-color:#f5f5f5"padding>
+<form  method="POST" action="http://localhost:5000/forum/thread/{{thread['id']}}/"  class="border" name="submit" style="width: 70%; padding: 20px; margin:auto; background-color:#f5f5f5"padding>
    <div class="input-group mb-3" >
       <input type = "text" name = "reply" class="form-control" placeholder="Speak your mind">
      
@@ -108,4 +111,5 @@
       <p class="alert alert-warning" role="alert">{{error_message}}</p>
    </div>
 {% endif %} 
+</body>
 {% endblock %} 

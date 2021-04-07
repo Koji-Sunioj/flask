@@ -9,27 +9,19 @@
     background: white !important;
 }
 </style>
+
+<body onload="task_page()">
+{% if is_future %}
 <h2 >Create task for {{title}}</h2>
-   <form  method="POST" class="border" name="submit">
+   <form  method="POST" class="border" id="to_do">
       <div class="form-group">
             <div class="row">
-               <!--<div class="col-2" >
-                  <select class="form-select" style="margin-top: 20px; text-align: center;" name ="color">
-                        <option selected  value ="black" style="color: black;">&#x25CF;</option>
-                        <option value="red" style="color: red;">&#x25CF;</option>
-                        <option value="blue" style="color:blue;">&#x25CF;</option>
-                        <option value="orange" style="color: orange;" >&#x25CF;</option>
-                        <option value="green" style="color: green;" >&#x25CF;</option>
-                        <option value="violet" style="color: violet;" >&#x25CF;</option>
-                  </select>
-               </div>
-            -->
             <div class="col-2" style="align-items: center;">
             <div class="form-check">
                <label class="form-check-label" for="flexCheckChecked">
                   All day
                   </label>
-                  <input class="form-check-input" type="checkbox" name="whole_day" id="flexCheckChecked" checked onclick="myFunction()">
+                  <input class="form-check-input" type="checkbox" name="whole_day" id="flexCheckChecked" checked>
              </div>
             </div>
              
@@ -48,64 +40,49 @@
                   <select class="form-select" aria-label="Default select example" style="margin-top: 20px;" name ="end_time" id="totime">
                      <option selected disabled>End time</option>
                      {% for time in times[1:] %}
-                     <option value="{{time}}" >{{time[11:16]}}</option>
+                     <option value="{{time}}" class="to_time">{{time[11:16]}}</option>
                      {% endfor %}
                   </select>
                </div>
             </div>
             </div>
          </div>
-        
-         <input class="form-control" placeholder="forest larping" name="category" style="margin-top: 20px;">
-         <textarea class="form-control"  rows="3" placeholder="chilling in män-tsälä like a real män" name="post" style="margin-top: 20px;"></textarea>
+         <input type="hidden" id="day" value={{day}}>
+         
+         <select class="form-select" aria-label="Default select example" name="category"style="margin-top: 20px;">
+            <option selected value="">task type</option>
+            <option value="work">work</option>
+            <option value="fun">fun</option>
+            <option value="errand">errand</option>
+          </select>
+         <input class="form-control"  placeholder="chilling in män-tsälä like a real män" name="title" style="margin-top: 20px;"></textarea>
          <button class="btn btn-primary" style="margin-top: 20px;">Submit</button>
      
       </div>
  </form>
+ {% else %}
+ <h2 >Tasks for {{title}}</h2>
+ {% endif %}
    <br> 
+   <div class="alert alert-warning" style="display: none; width: 70%; margin: auto;" id="warning"> 
+    </div>
+
    {% if message  %}
-   <div class="col-4 offset-4" style="margin-top: 20px;"> 
+   <div class="col-4 offset-4" style="margin-top: 20px;">
      <p class="alert alert-warning" role="alert">{{message}}</p>
    </div>
    {% endif%}
-   
-   {%if day_data%}
-   <div style="width: 70%; margin:auto;">
-      <h2>Existing tasks</h2>
-      {% for i in day_data %}
-            
-      <div class="card">
-         <div class="card-body">
-            <p class="card-text"><strong>{{i[2]}}</strong></p>
-            <p class="card-text">{{i[3]}}</p>
-            {% if i[0].strftime('%H')|int == 0 and i[1].strftime('%H')|int == 0%}
-            <p class="card-subtitle mb-2 text-muted">all day!</p>   
-            {% else %}
-            <p class="card-subtitle mb-2 text-muted">{{i[0].strftime('%H:%M')}} to {{i[1].strftime('%H:%M')}}</p>   
-            {% endif%}
-         </div>  
+
+<div style="width: 70%; margin:auto;margin-top: 20px;">
+  {% for i in day_data.values %}
+   <div class="card" id="{{i[0]}}">
+      <div class="card-body">
+         <p class="card-text {{i[4]}}"><strong>{{i[4]}}</strong></p>
+         <p class="card-text title">{{i[3]}}</p>
+         <p class="card-subtitle mb-2 text-muted">{{i[1].strftime('%H:%M')}} to {{i[2].strftime('%H:%M')}}</p>        
       </div>  
-   {% endfor %}
-</div>
-   {% endif %}
-   <script>
-function myFunction() {
-  var checkBox = document.getElementById("flexCheckChecked");
-  var text = document.getElementById("text");
-  if (checkBox.checked == false){
-    text.style.display = "inline";
-  } else {
-     text.style.display = "none";
-  }
-}
-
-
-   $('#fromtime').on('change', function(){
-      var fromTime = $(this).val();
-      var today = new Date($(this).val());
-   
-   $('#totime option').filter(function() {
-      var tempDate = new Date($(this).val());
-      return tempDate <= today;}).prop('disabled', true);});
- </script>
+   </div>  
+  {% endfor %}
+</div> 
+ </body>
 {% endblock %} 
