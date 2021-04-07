@@ -11,9 +11,41 @@ import pymysql
 import pycountry_convert as pc
 import db_functions
 import calendar
-con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
+from google_get import main
+con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 from datetime import datetime,date,timedelta
+from dateutil.relativedelta import relativedelta
+from pandas.tseries.offsets import DateOffset
 
+
+def tax_year_header(username,years,contracts):
+	#select values from db based on values in contracts, into one frame
+	tax_years = pd.concat(db_functions.tax_years_get_v2(username,employer['employer']) for employer in contracts)
+	#same but for google calendar
+	tax_years_append = pd.concat(main(pd.to_datetime(datetime.today().strftime('%Y-%m')).isoformat() + 'Z',query=employer['employer']) for employer in contracts)
+	#merge google and db values
+	tax_years = tax_years.append(tax_years_append[['start_time','end_time','title']])
+	#aggregate hours diff, working days where exists and the contract month offset 
+	tax_years['total hours'] = (tax_years['end_time'] - tax_years['start_time']).dt.seconds / 3600
+	tax_years['work days'] = 1
+	for i in contracts:
+		tax_years.loc[tax_years.title.str.contains(i['employer']),'offset'] = i['paydate_offset']
+	#convert index to period, then a new column which is index offset by contract pay month differential
+	tax_years.index = tax_years.index.to_period('M')
+	tax_years['post_to'] = tax_years.index + tax_years.offset.astype(int)
+	tax_years = tax_years.drop(columns=['offset','start_time','end_time','title'])
+	#get unique values for post years, to generate html classes for the html page
+	year_slicer = np.sort(tax_years.post_to.dt.year.unique())
+	year_slicer.sort()
+	#create an array of frames, seperated by post year (tax year), then group the sums together
+	stuff = [tax_years[tax_years.post_to.dt.year == year] for year in years if not tax_years[tax_years.post_to.dt.year == year].empty]
+	stuff = [stuff[i].groupby(stuff[i].index).sum().round(2) for i in range(0,len(stuff))]
+	for i in stuff:
+		i.loc['total'] = i.sum()
+		i.index.name = 'work month'
+	tax_years_frame = [frame.reset_index().to_html(classes='table',table_id=year, header=True,index=False) for year,frame in zip(year_slicer,stuff)]
+	tax_years_frame.reverse()
+	return tax_years_frame 
 
 def get_page(page,crud_table,sort_key=None,direction=None,last=None):
 	crud_table = pd.DataFrame(crud_table)
@@ -81,7 +113,6 @@ def home_dashboard(hometown,username):
 	url = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/weatherdata/forecast?aggregateHours=24&combinationMethod=aggregate&contentType=json&unitGroup=metric&locationMode=single&key=NFL5M6IWKEWK1CTBV54KLQ9JR&dataElements=default&locations={}'.format(hometown)
 	response = requests.get(url)
 	data = response.json()
-	#print(str(data['remainingCost']) + ' server requests remaining today')
 	home_town = data['location']['id']
 	weather_summary =  data['location']['currentConditions']['icon']
 	forecast_time = data['location']['currentConditions']['datetime'][:10] + ' '+ data['location']['currentConditions']['datetime'][11:16]
@@ -92,19 +123,79 @@ def home_dashboard(hometown,username):
 	
 	return social_header,summary,next_task
 
-
-def make_calendar(date,username=None):
+def make_day(date,username=None,role=None):
+	cal_data = db_functions.check_day_tasks(date,username)
+	check_future = (int(pd.to_datetime(date).strftime('%Y%m')) - int(datetime.now().strftime('%Y%m')))
+	#admin_roles = db_functions.check_roles(username)
+	if check_future >= 0 and role == 'admin':
+		day = pd.to_datetime(date).strftime('%Y-%m-%d')
+		times = [pd.to_datetime(day) + timedelta(hours = int(i)) for i in np.arange(0,25)]
+		start = times[0].isoformat() + 'Z'
+		end = times[-1].isoformat() + 'Z'
+		google_get = main(start,end)
+		cal_data = cal_data.append(google_get)
+		return cal_data
+	return cal_data
+	
+def make_calendar(date,username=None,role=None):
 	stamp = pd.to_datetime(date)
+	#list of dates relative to current month
 	stamp_ranger = pd.date_range(start='{}/1/{}'.format(stamp.month,stamp.year), end='{}/{}/{}'.format(stamp.month,stamp.days_in_month,stamp.year))
-	framer = pd.DataFrame(stamp_ranger.weekofyear.unique(),columns=['week'])
-	framer['year'] =  [stamp_ranger.year.unique().values[0] for i in framer.values ]
-	framer['diff'] = framer['week'].diff(periods=-1)
-	framer.loc[framer['diff'] > 1,'year'] = framer.loc[framer['diff'] > 1,'year'] - 1
-	new_stamper = pd.to_datetime(framer.week.astype(str)+'-'+framer.year.astype(str)+'-1' ,format='%V-%G-%u')
-	calender_list = [i + timedelta(days=int(s)) for s in np.arange(0,7) for i in new_stamper]
-	calender_list.sort()
-
-	cal_data = db_functions.check_calendar_data(date,username)
+	stamp_min = stamp_ranger[0] - timedelta(days=stamp_ranger[0].dayofweek)
+	stamp_max = stamp_ranger[-1] + timedelta(days=abs(stamp_ranger[-1].dayofweek - 6))
+	#list of dates relative to all week numbers in the current month
+	calender_list = pd.date_range(stamp_min,stamp_max)
+	weeks = pd.Series(calender_list.weekofyear.unique())
+	#we always want the calendar items which were saved by the user, its sliced according to first and last day of week numbers
+	cal_data = db_functions.check_calendar_v2(str(calender_list[0]),str(calender_list[-1]+timedelta(days=2)),username)
+	if role == 'admin':
+		start = calender_list[0].isoformat() + 'Z'
+		end = (calender_list[-1] + timedelta(days=1)).isoformat() + 'Z'
+		#check if work tasks exists for this month
+		stuff = db_functions.check_calendar_exists(str(stamp))
+		if stuff[0] == True:
+			#server difference is the diff of target month dates, and week number dates, offset by future values
+			server_db_diff = list(set(calender_list) - set(stamp_ranger))
+			server_db_diff.sort()
+			server_db_diff =[i for i in server_db_diff if i.month == datetime.today().month]
+			#if work tasks exist for the month, but there are future dates in the calendar
+			if any(server_db_diff):
+				print('server not hit for target month but future dates requested')
+				start = server_db_diff[0].isoformat() + 'Z'
+				end = server_db_diff[-1].isoformat() + 'Z'
+				google_get = main(start,end)
+				google_get['category'] = 'work'
+				cal_data = cal_data.append(google_get)
+				cal_data = cal_data.drop_duplicates(subset=['start_time'])
+				pass
+			#work tasks exist for this month, but no dates past target month exist in calendar
+			else:
+				print('server not hit')
+				pass
+		else:
+			check_past_month = (int(stamp.strftime('%Y%m')) - int(datetime.now().strftime('%Y%m')))
+			#if number is negative, meaning that the month is previous to the current:
+			if check_past_month <0:
+				google_get = main(start,end) 
+				google_frame = google_get.sort_index()
+				google_frame = google_frame.reset_index(drop=True)
+				google_frame = google_frame.drop(columns=['cal_id'])
+				google_frame['username'] = username
+				google_frame = google_frame[['start_time','end_time','username','category','title']]
+				#only insert the target month, since values might exist for previous month (dont want duplicates)
+				mysql_target = google_frame[(google_frame['start_time'].dt.year == stamp.year) & (google_frame['start_time'].dt.month == stamp.month)]
+				db_functions.deposit_google_tasks(mysql_target)
+				cal_data = cal_data.append(google_get)
+				cal_data = cal_data.drop_duplicates(subset=['start_time'])
+				print('server hit and values for {} inserted to database'.format(stamp.strftime('%Y-%m')))
+			else:
+				google_get = main(start,end)
+				google_get['category'] = 'work'
+				cal_data = cal_data.append(google_get)
+				cal_data = cal_data.drop_duplicates(subset=['start_time'])
+				print('server hit')
+	
+	#merge data together (from db tasks or google api stuff)
 	if any(cal_data):
 		cal_list = []
 		for date_string in calender_list:
@@ -115,25 +206,30 @@ def make_calendar(date,username=None):
 					cal_dict['data'] = {}
 					if len(cal_data.loc[date_string]) > 1:  
 						for cal_id in cal_data.loc[date_string]['cal_id'].values:
-							cal_dict['data'][cal_id] = {'start_time': cal_data[cal_data['cal_id'] == cal_id].start_time[0],'end_time':cal_data[cal_data['cal_id'] == cal_id].end_time[0],'title':cal_data[cal_data['cal_id'] == cal_id].category[0]}    
+							cal_dict['data'][cal_id] = {'start_time': cal_data[cal_data['cal_id'] == cal_id].start_time[0],'end_time':cal_data[cal_data['cal_id'] == cal_id].end_time[0],'title':cal_data[cal_data['cal_id'] == cal_id].title[0],'category':cal_data[cal_data['cal_id'] == cal_id].category[0]}    
 					cal_list.append(cal_dict)
 				except:
 					cal_dict = {}
 					cal_dict['date'] = date_string
 					cal_dict['data'] = {}
-					cal_dict['data'][cal_data.loc[date_string]['cal_id']] = {'start_time':cal_data.loc[date_string]['start_time'],'end_time':cal_data.loc[date_string]['end_time'],'title':cal_data.loc[date_string]['category']}
+					cal_dict['data'][cal_data.loc[date_string]['cal_id']] = {'start_time':cal_data.loc[date_string]['start_time'],'end_time':cal_data.loc[date_string]['end_time'],'title':cal_data.loc[date_string]['title'],'category':cal_data.loc[date_string]['category']}
+					
 					cal_list.append(cal_dict)
 			else:
 				cal_list.append(date_string)
-				
-		framer = pd.DataFrame(np.array(cal_list).reshape(len(framer),7),index = framer['week'])
+		
+		framer = pd.DataFrame(np.array(cal_list).reshape(len(weeks),7),index = weeks)
+		framer.index.name = 'week'
 		framer.columns = [ calendar.day_name[i] for i in framer.columns]
 		title = stamp.strftime('%B %Y')
 		return title,framer.reset_index()
 	
-	framer = pd.DataFrame(np.array(calender_list).reshape(len(framer),7),index = framer['week'])
+	#if there are no tasks as queried by the database, or this month in work stuff
+	framer = pd.DataFrame(np.array(calender_list).reshape(len(weeks),7),index = weeks)
+	framer.index.name = 'week'
 	framer.columns = [ calendar.day_name[i] for i in framer.columns]
 	title = stamp.strftime('%B %Y')
+	
 	return title,framer.reset_index()
 
 def get_weather(city):
@@ -173,96 +269,21 @@ def get_weather(city):
 	return table,summary,server_city,maxt,mint,dates
 	
 	
-	
-def covid_frame(var_last):
-	#call server to create dataframe, index from last db date onwards
-	url = 'https://pomber.github.io/covid19/timeseries.json'
-	r = requests.get(url)
-	response_dict = r.json()
-	data = []
-	for i in response_dict.items():
-		data.append(i)
-		
-	dates = []
-	cases = []
-	country = []
-	deaths = []
-	recovered = []
-	
-	#send json response to lists
-	for i in data:
-		for l in i[1]:
-			country.append(i[0])
-			dates.append(l['date'])
-			cases.append(l['confirmed'])
-			deaths.append(l['deaths'])
-			recovered.append(l['recovered'])
-	
-	#construct frame from dict of lists		
-	frame = {'dates':dates, 'country':country, 'cases':cases, 'deaths': deaths, 'recovered': recovered}
-	df = pd.DataFrame(frame)
-	df.dates = pd.to_datetime(df.dates)
-	df['active'] = df['cases'] - df['deaths'] - df['recovered']
-	
-	#sequencially calculate change of new cases per day
-	df_cases = df['cases'].tolist()
-	reference = []
-	calculated = []
-	
-	for s in range(len(df_cases)):
-		reference.append(df_cases[s])
-		if s == 0:
-			calculated.append(reference[0])
-		else:
-			calculated.append(reference[-1] - reference[-2])
-	
-	#create new column, set date index to fix new case on first date, US to USA		
-	df['new'] = calculated
-	df = df.set_index('dates')
-	df.loc['2020-01-22','new'] = df.loc['2020-01-22','cases']
-	df.loc[df['country'] == 'US','country'] = 'United States of America'
-	print('frame from server completed')
-	
-	select = con.cursor()
-	select.execute('select country from geo_data.continent_table;')
-	db_countries = select.fetchall()
-	db_countries = [i[0] for i in db_countries]
-
-	#missing country, if any
-	missing_country = df[~df['country'].isin(list(db_countries))]
-	all_append = df[df.index > str(var_last)].append(missing_country[missing_country.index <= str(var_last)]).reset_index()
-	
-	if len(all_append)>0:
-		#insert new country in continent table, if exists
-		if len(missing_country.country.unique()) > 0:
-			mapper = {'AF': 'Africa', 'AS': 'Asia', 'EU': 'Europe', 'NA': 'North America','OC':'Oceana','SA':'South America'}
-			insert_new_country = []
-			insert_new_continent = []
-
-			for i in missing_country.country.unique():
-				country_code = pc.country_name_to_country_alpha2(i, cn_name_format="default")
-				continent_name = pc.country_alpha2_to_continent_code(country_code)
-				insert_new_country.append(i)
-				insert_new_continent.append(mapper[continent_name])
-				
-			db_functions.update_continent(insert_new_country,insert_new_continent) 
-		else:
-			pass
-		
-		#then insert into main table
-		db_functions.update_covid(all_append)
-	
-		#if country exists in db, but not in the covid server anymore, remove it:
-		server = list(df.country.unique())
-		delete_it = [deleter for deleter in db_countries if deleter not in server]
-		if len(delete_it) > 0:
-			db_functions.delete_forgotten(delete_it)
-		update_values = len(all_append)
-	else:
-		pass
-		print('server frame is same as db')
-		update_values = 0
-	
-	return update_values
 
 
+'''
+def tax_year_header(username,years):
+	tax_years = db_functions.tax_years_get(username)
+	tax_years_append = main(pd.to_datetime(datetime.today().strftime('%Y-%m')).isoformat() + 'Z')
+	tax_years = tax_years.append(tax_years_append[['start_time','end_time']])
+	tax_years['total hours'] = (tax_years['end_time'] - tax_years['start_time']).dt.seconds / 3600
+	tax_years['work days'] = 1
+	monthly = tax_years.resample('m').sum().round(2)
+	monthly['post_to'] = monthly.index + DateOffset(months=1)
+	true_month_slicer = tax_years.index.to_period('M').to_timestamp('M').unique()
+	monthly = monthly[(monthly.index.isin(true_month_slicer))]
+	monthly.index = monthly.index.to_period('M')
+	monthly.index.name = 'work month'
+	tax_years_frame = [monthly[monthly['post_to'].dt.year == int(year)].drop(columns=['post_to']).reset_index().to_html(classes='table',table_id=int(year), header=True,index=False) for year in years if not monthly[monthly['post_to'].dt.year == int(year)].empty]
+	return tax_years_frame
+'''
