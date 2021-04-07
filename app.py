@@ -18,7 +18,7 @@ import math
 import pymysql
 from dateutil.relativedelta import relativedelta
 from datetime import datetime,date,timedelta
-con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
+con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
 
 #export FLASK_ENV=development
 
@@ -462,73 +462,7 @@ def forum_thread(thread):
 		
 	thread,replies,reply_reply = thread_page(thread)
 	return render_template('thread.html',thread=thread,replies=replies,reply_reply=reply_reply)
-	
-'''testing highcharts here'''
-
-
-
-
 
 if (__name__ == "__main__"):
 	app.run(port = 5000, debug=True)
 
-'''
-@app.route('/graph/')
-def graph(chartID = 'population'):
-	columns,municipality,population = db_functions.top_10_pop()
-	chart_type = 'column'
-	title = 'hello'
-	return render_template('graph.html',chart_type=chart_type,population=population,municipality=municipality,title=columns[0],subtitle=columns[1])
-
-	if any(check_inserted[:-1]):
-		tax_years = db_functions.tax_years_get(session['username'])
-		tax_years_append = main(pd.to_datetime(datetime.today().strftime('%Y-%m')).isoformat() + 'Z')
-		tax_years = tax_years.append(tax_years_append[['start_time','end_time']])
-		tax_years['total_hours'] = (tax_years['end_time'] - tax_years['start_time']).dt.seconds / 3600
-		monthly = tax_years.resample('m').sum().round(2)
-		monthly['post_to'] = monthly.index + DateOffset(months=1)
-		true_month_slicer = tax_years.index.to_period('M').to_timestamp('M').unique()
-		monthly = monthly[(monthly.index.isin(true_month_slicer))]
-		tax_years_frame = [monthly[monthly['post_to'].dt.year == int(year)].drop(columns=['post_to']).reset_index().to_html(classes='table',table_id=int(year), header=True,index=False) for year in years if not monthly[monthly['post_to'].dt.year == int(year)].empty] 
-		return render_template("tax_year.html",year_dict=year_dict,tax_years_frame=tax_years_frame)
-	tax_years_append = main(pd.to_datetime(datetime.today().strftime('%Y-%m')).isoformat() + 'Z')
-	tax_years_append['total_hours'] = (tax_years_append['end_time'] - tax_years_append['start_time']).dt.seconds / 3600
-	tax_years_append = [tax_years_append.resample('m').sum().round(2).reset_index().to_html(classes='table',table_id=int(datetime.today().year), header=True,index=False)]
-	return render_template("tax_year.html",year_dict=year_dict,tax_years_frame=tax_years_append)
-	
-	@app.route("/tax-year/",methods=['POST','GET'])
-def tax_year():
-	if request.method == 'POST':
-		if 'search_parameter' in request.form:
-			query = request.form['search_parameter']
-			year = pd.to_datetime(request.form['year'])
-			start = (year - relativedelta(months=1))
-			end = (start + relativedelta(years=1))
-			google_frame = main(start.isoformat()+'Z',end.isoformat()+'Z',query)
-			google_frame['username'] = session['username']
-			google_frame = google_frame.sort_index()
-			google_frame = google_frame[(google_frame.index < pd.to_datetime(datetime.now().strftime('%Y-%m')))]
-			google_frame = google_frame.reset_index(drop=True)
-			google_frame = google_frame.drop(columns=['cal_id'])
-			google_frame = google_frame[['start_time','end_time','username','category','title']]
-			db_functions.deposit_google_tasks(google_frame)
-			return redirect(url_for("tax_year"))
-		elif 'reappend' in request.form:
-			reappend = pd.read_pickle('reappend_db.pkl')
-			db_functions.deposit_google_tasks(reappend)
-			return redirect(url_for("tax_year"))
-	contracts = db_functions.tax_contract_get(session['username'])
-	if contracts: 
-		contracts = [i[2] for i in contracts]
-		years = ['2019','2020','2021']
-		for year in years:
-			for con in contracts:
-				print(db_functions.check_inserted_data_v2(str(pd.to_datetime(year)),session['username'],con))
-		#	print(db_functions.check_inserted_data_v2(str(pd.to_datetime(year)),session['username'],employer))
-		check_inserted = [len(db_functions.check_inserted_data(str(pd.to_datetime(year)),session['username'])) >=12  for year in years]
-		year_dict = [{'year':year ,'inserted':check} for year,check in zip(years,check_inserted)]
-		tax_years_frame = tax_year_header(session['username'],years)
-		return render_template("tax_year.html",year_dict=year_dict,tax_years_frame=tax_years_frame,contracts=contracts)
-	return render_template("tax_year.html")
-	
-	'''
