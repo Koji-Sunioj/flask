@@ -48,12 +48,12 @@ function parse_calendar()
 
 
 	//show modal form on click
-	$(document).on('click', '#settings_toggle', function() {
+	/*$(document).on('click', '#settings_toggle', function() {
 		
 		$('#settings').modal('show');
 		
 		});
-
+*/
 	// event lister for both employer name and paydate offset:
 
 	$(document).on('change', 'select[name=paydate_month_offset]', function() {
@@ -94,15 +94,30 @@ function parse_calendar()
 	//event listener for keying base input, render three items, ready button, checkboxes for adding years and supplements
 
 	$(document).on('keyup', 'input[name=base]', function() {
-		$('#add_supplement').show();
-		$('#add_google_years').show();
-		$('#create_contract').show();
+
+	
 		
 		//hide and remove values if input is keyed to zero
-		if ($(this).val() == 0)
+		if (!$(this).val())
 		{ 	
 			normalize_modal_contract()	
 		}
+
+		else if ($.isNumeric($(this).val()) == false) 
+		{
+			normalize_modal_contract()
+			$('#message').text('numbers only');
+			$('#message').show();	
+		}
+
+		else  
+		{
+			$('#message').hide();
+			$('#add_supplement').show();
+			$('#add_google_years').show();
+			$('#create_contract').show();
+		}
+
 
 	});
 
@@ -142,9 +157,17 @@ function parse_calendar()
 	
 	//changing the value of the button text when selecting checkboxes for table row
 	$(document).on('click', '.dropdown_check', function() {
+		var selected = [];
+		$(this).parent().find('input:checked').each(function() {
+			selected.push($(this).val());
+		});
+		
+		//alert($(this).find('input:checkbox').val());
 		var new_val = $(this).text();
 		var numberOfChecked = $(this).parent().find('input:checkbox:checked').length;
 		var button_text = $(this).parent().siblings('button');
+		var hidden_arr = $(this).parent().siblings('input:hidden');
+		hidden_arr.val(selected)
 		if (numberOfChecked > 1)
 		{
 			button_text.text(`${numberOfChecked} selected`);
@@ -159,6 +182,7 @@ function parse_calendar()
 		else 
 		{
 			button_text.text(new_val);
+			
 		}
 			
 		});
@@ -213,12 +237,70 @@ function parse_calendar()
 	})  
 
 	$('form[name=new_contract]').on('submit', function(event) {
-		event.preventDefault();
-		//alert('asdasd');
-		//event.preventDefault();
+	
+		var form = $(this);
+		
+		var empty_table_check = [];
+		var unique_base_chec = [];
+		var num_chec = [];
+
+		$("#supplement_table tbody tr").each(function(){
+
+			var row = $(this);
+			unique_base_chec.push(row.find('input[name=rule_name]').val())
+			num_chec.push($.isNumeric(row.find('input[name=rate]').val()))
+			if (!row.find('input[name=days_arr]').val() || !row.find('input[name=rule_name]').val() || !row.find('input[name=rate]').val() || row.find('select[name=start_times]').val() == 'Start time' ||row.find('select[name=end_times]').val() == 'End time' ) 
+			{
+				empty_table_check.push(true);
+			}
+			
+		});
+		var orig_rules = unique_base_chec.length;
+		var unique_rules = $.uniqueSort(unique_base_chec).length;
+		
+		
+		if ($("#add_google_years input:checkbox").is(":checked") && !$("#parse_years option:selected").is(':selected') || $.inArray(true, empty_table_check) == 0 || orig_rules != unique_rules || $.inArray(false, num_chec) == 0) 
+		{	
+			event.preventDefault();
+			$('#message').text('empty values in supplement table, parse years or non unique rule names exist');
+			$('#message').show();	
+		}
+
+		else 
+		{	
+			event.preventDefault();
+			var employer = $('input[name=employer]').val();
+			$('#message').hide();
+			$.ajax({
+				data : 
+				{	
+					employer : employer
+				},
+				type : 'POST',
+				url : '/contract_validation'
+			})
+			.done(function(data)
+			{
+			
+			if (data.error)
+			
+			{
+				
+				$('#message').text(data.error);
+				$('#message').show();
+			}
+			else
+			{   
+				///event.preventDefault();
+				form[0].submit();
+			}
+
+			})
+		}
+		
 	})
 
-// ajax function, used when contract is available, might change it to seperate modal form
+// ajax checking if contract exists , used when contract is available, might change it to seperate modal form
 	$(document).on('change', 'select[name=search_parameter]', function() {
 		var year_selector = $('select[name=year]');
 		var calendar_parser  = $('#calendar_parser');
