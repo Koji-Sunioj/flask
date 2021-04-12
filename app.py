@@ -18,7 +18,7 @@ import math
 import pymysql
 from dateutil.relativedelta import relativedelta
 from datetime import datetime,date,timedelta
-con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
+con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 
 #export FLASK_ENV=development
 
@@ -146,16 +146,7 @@ def index():
 		return render_template("index.html")
 		
 		
-@app.route('/contract_validation', methods=['POST'])
-def contract_validation():
-	employer = request.form['employer']
-	paydate_month_offset = int(request.form['paydate_month_offset'])
-	try:
-		db_functions.tax_contract_create(session['username'],employer,paydate_month_offset)
-		#contracts = db_functions.tax_contract_get(session['username'])
-		return jsonify({'success':'creation successful'})
-	except:
-		return jsonify({'error':'duplicate entry or error'})
+
 	
 @app.route('/year_validation/', methods=['POST'])
 def year_validation():
@@ -170,39 +161,52 @@ def year_validation():
 	year_dict = json.dumps(year_dict)
 	return year_dict
 	
+	
+@app.route('/contract_validation', methods=['POST'])
+def contract_validation():
+	employer = request.form['employer']
+	existing_contracts = db_functions.tax_contract_get(session['username'])
+	if employer in [i[2] for i in existing_contracts]:
+		print('duplicate found')
+		return jsonify({'error':'existing contract for {} found'.format(employer)})
+	return jsonify({'success':'can create contract'})
 
 @app.route("/tax-year/",methods=['POST','GET'])
 def tax_year():
 	if request.method == 'POST':
-		print(request.form)
-		
+		#first, send basic info to db, fetch contract id
+		employer = request.form['employer']
+		paydate_month_offset = request.form['paydate_month_offset']
+		base = request.form['base']
+		contract_id = db_functions.tax_contract_create(session['username'],employer,paydate_month_offset,base)
+		#optional supplement table
+		supplement_table = pd.DataFrame(data={'rule_name':request.form.getlist("rule_name"),'rate':request.form.getlist("rate"),'start_time':request.form.getlist("start_times"),'end_time':request.form.getlist("end_times"),'days_arr':request.form.getlist("days_arr")})
+		if not supplement_table.empty:
+			supplement_table['contract_id'] = contract_id
+			db_functions.tax_supplement_create(supplement_table)
+		#send to db if parse years requested (exists in form as array)
+		parse_years = [int(year) for year in request.form.getlist("parse_years")]
+		if parse_years:
+			start = [datetime(year, 1, 1) - relativedelta(months=int(paydate_month_offset)) for year in parse_years]
+			end =  [datetime(datetime.today().year,datetime.today().month,1) if start_year + relativedelta(years=1) >= datetime.today() else start_year + relativedelta(years=1) for start_year in start]
+			parse_arr = [{'start':i.isoformat()+'Z','end':s.isoformat()+'Z'} for i,s in zip(start,end)]
+			google_get = pd.concat(main(indexer['start'],indexer['end'],query=employer) for indexer in parse_arr)
+			google_get['username'] = session['username']
+			google_get = google_get.sort_index().reset_index(drop=True).drop(columns=['cal_id'])
+			db_functions.deposit_google_tasks(google_get[['start_time','end_time','username','category','title']])
 		'''
-		if 'search_parameter' in request.form:
-			query = request.form['search_parameter']
-			year = pd.to_datetime(request.form['year'])
-			start = (year - relativedelta(months=1))
-			end = (start + relativedelta(years=1))
-			google_frame = main(start.isoformat()+'Z',end.isoformat()+'Z',query)
-			google_frame['username'] = session['username']
-			google_frame = google_frame.sort_index()
-			google_frame = google_frame[(google_frame.index < pd.to_datetime(datetime.now().strftime('%Y-%m')))]
-			google_frame = google_frame.reset_index(drop=True)
-			google_frame = google_frame.drop(columns=['cal_id'])
-			google_frame = google_frame[['start_time','end_time','username','category','title']]
-			db_functions.deposit_google_tasks(google_frame)
-			return redirect(url_for("tax_year"))
 		elif 'reappend' in request.form:
-			reappend = pd.read_pickle('reappend_db.pkl')
-			db_functions.deposit_google_tasks(reappend)
+		#	reappend = pd.read_pickle('reappend_db.pkl')
+		#	db_functions.deposit_google_tasks(reappend)
 		'''
 		return redirect(url_for("tax_year"))
 	contracts = db_functions.tax_contract_get(session['username'])
 	times = np.arange(0,25)
 	if contracts: 
-		contracts = [{'employer':i[2],'paydate_offset':i[3]} for i in contracts]
+		contracts = [{'employer':i[2],'paydate_offset':i[3],'base':i[4],'contract_id':i[0]} for i in contracts]
 		years = [2019,2020,2021]
 		tax_years_frame = tax_year_header(session['username'],years,contracts)
-		return render_template("tax_year.html",tax_years_frame=tax_years_frame,contracts=[i['employer'] for i in contracts])
+		return render_template("tax_year.html",tax_years_frame=tax_years_frame,contracts=[i['employer'] for i in contracts],times=times)
 	return render_template("tax_year.html",times=times)
 
 @app.route("/calendar/<date>",methods = ['POST', 'GET'])
@@ -462,7 +466,73 @@ def forum_thread(thread):
 		
 	thread,replies,reply_reply = thread_page(thread)
 	return render_template('thread.html',thread=thread,replies=replies,reply_reply=reply_reply)
+	
+'''testing highcharts here'''
+
+
+
+
 
 if (__name__ == "__main__"):
 	app.run(port = 5000, debug=True)
 
+'''
+@app.route('/graph/')
+def graph(chartID = 'population'):
+	columns,municipality,population = db_functions.top_10_pop()
+	chart_type = 'column'
+	title = 'hello'
+	return render_template('graph.html',chart_type=chart_type,population=population,municipality=municipality,title=columns[0],subtitle=columns[1])
+
+	if any(check_inserted[:-1]):
+		tax_years = db_functions.tax_years_get(session['username'])
+		tax_years_append = main(pd.to_datetime(datetime.today().strftime('%Y-%m')).isoformat() + 'Z')
+		tax_years = tax_years.append(tax_years_append[['start_time','end_time']])
+		tax_years['total_hours'] = (tax_years['end_time'] - tax_years['start_time']).dt.seconds / 3600
+		monthly = tax_years.resample('m').sum().round(2)
+		monthly['post_to'] = monthly.index + DateOffset(months=1)
+		true_month_slicer = tax_years.index.to_period('M').to_timestamp('M').unique()
+		monthly = monthly[(monthly.index.isin(true_month_slicer))]
+		tax_years_frame = [monthly[monthly['post_to'].dt.year == int(year)].drop(columns=['post_to']).reset_index().to_html(classes='table',table_id=int(year), header=True,index=False) for year in years if not monthly[monthly['post_to'].dt.year == int(year)].empty] 
+		return render_template("tax_year.html",year_dict=year_dict,tax_years_frame=tax_years_frame)
+	tax_years_append = main(pd.to_datetime(datetime.today().strftime('%Y-%m')).isoformat() + 'Z')
+	tax_years_append['total_hours'] = (tax_years_append['end_time'] - tax_years_append['start_time']).dt.seconds / 3600
+	tax_years_append = [tax_years_append.resample('m').sum().round(2).reset_index().to_html(classes='table',table_id=int(datetime.today().year), header=True,index=False)]
+	return render_template("tax_year.html",year_dict=year_dict,tax_years_frame=tax_years_append)
+	
+	@app.route("/tax-year/",methods=['POST','GET'])
+def tax_year():
+	if request.method == 'POST':
+		if 'search_parameter' in request.form:
+			query = request.form['search_parameter']
+			year = pd.to_datetime(request.form['year'])
+			start = (year - relativedelta(months=1))
+			end = (start + relativedelta(years=1))
+			google_frame = main(start.isoformat()+'Z',end.isoformat()+'Z',query)
+			google_frame['username'] = session['username']
+			google_frame = google_frame.sort_index()
+			google_frame = google_frame[(google_frame.index < pd.to_datetime(datetime.now().strftime('%Y-%m')))]
+			google_frame = google_frame.reset_index(drop=True)
+			google_frame = google_frame.drop(columns=['cal_id'])
+			google_frame = google_frame[['start_time','end_time','username','category','title']]
+			db_functions.deposit_google_tasks(google_frame)
+			return redirect(url_for("tax_year"))
+		elif 'reappend' in request.form:
+			reappend = pd.read_pickle('reappend_db.pkl')
+			db_functions.deposit_google_tasks(reappend)
+			return redirect(url_for("tax_year"))
+	contracts = db_functions.tax_contract_get(session['username'])
+	if contracts: 
+		contracts = [i[2] for i in contracts]
+		years = ['2019','2020','2021']
+		for year in years:
+			for con in contracts:
+				print(db_functions.check_inserted_data_v2(str(pd.to_datetime(year)),session['username'],con))
+		#	print(db_functions.check_inserted_data_v2(str(pd.to_datetime(year)),session['username'],employer))
+		check_inserted = [len(db_functions.check_inserted_data(str(pd.to_datetime(year)),session['username'])) >=12  for year in years]
+		year_dict = [{'year':year ,'inserted':check} for year,check in zip(years,check_inserted)]
+		tax_years_frame = tax_year_header(session['username'],years)
+		return render_template("tax_year.html",year_dict=year_dict,tax_years_frame=tax_years_frame,contracts=contracts)
+	return render_template("tax_year.html")
+	
+	'''
