@@ -36,14 +36,14 @@ CREATE TABLE `contract_rule` (
   `rule_id` int(11) NOT NULL AUTO_INCREMENT,
   `rule_name` varchar(255) DEFAULT NULL,
   `rate` float DEFAULT NULL,
-  `start_time` time DEFAULT NULL,
-  `end_time` time DEFAULT NULL,
+  `start_time` int(11) DEFAULT NULL,
+  `end_time` int(11) DEFAULT NULL,
   `target_days` varchar(255) DEFAULT NULL,
   `contract_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`rule_id`),
   KEY `contract_id` (`contract_id`),
-  CONSTRAINT `contract_rule_ibfk_1` FOREIGN KEY (`contract_id`) REFERENCES `employer` (`contract_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  CONSTRAINT `contract_rule_ibfk_1` FOREIGN KEY (`contract_id`) REFERENCES `employer` (`contract_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 CREATE TABLE `crud` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -608,6 +608,24 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `user_profile_get`(
 begin
 
 SELECT username,email,created,home_town,password FROM geo_data.users where username = session_username;
+
+END //
+
+DELIMITER ;
+			     
+DELIMITER //
+			     
+CREATE DEFINER=`root`@`localhost` PROCEDURE `tax_contract_create`(
+    IN session_username varchar(255),
+    IN input_employer varchar(255),
+    IN input_paydate_month_offset int,
+	IN input_base float
+)
+BEGIN
+
+insert into employer (username,employer,paydate_month_offset,base)
+values (session_username,input_employer,input_paydate_month_offset,input_base);
+SELECT LAST_INSERT_ID();
 
 END //
 
