@@ -167,7 +167,7 @@ function parse_calendar()
 		var numberOfChecked = $(this).parent().find('input:checkbox:checked').length;
 		var button_text = $(this).parent().siblings('button');
 		var hidden_arr = $(this).parent().siblings('input:hidden');
-		hidden_arr.val(selected)
+		hidden_arr.val( `[${selected}]`)
 		if (numberOfChecked > 1)
 		{
 			button_text.text(`${numberOfChecked} selected`);
