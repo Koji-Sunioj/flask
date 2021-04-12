@@ -531,23 +531,6 @@ DELIMITER ;
 
 DELIMITER //
 
-
-CREATE DEFINER=`root`@`localhost` PROCEDURE `tax_contract_create`(
-    IN session_username varchar(255),
-    IN input_employer varchar(255),
-    IN input_paydate_month_offset int
-)
-BEGIN
-
-insert into employer (username,employer,paydate_month_offset)
-values (session_username,input_employer,input_paydate_month_offset);
-
-END //
-
-DELIMITER ;
-
-DELIMITER //
-
 CREATE DEFINER=`root`@`localhost` PROCEDURE `tax_contract_get`(
     IN session_username	varchar(255)
 )
@@ -630,3 +613,20 @@ SELECT LAST_INSERT_ID();
 END //
 
 DELIMITER ;
+			    
+DELIMITER //
+			     
+CREATE DEFINER=`root`@`localhost` PROCEDURE `tax_supplement_create`(
+    IN input_rule_name varchar(255),
+    IN input_rate float,
+    IN input_start_time int,
+    IN input_end_time int,
+    IN input_target_days varchar(255),
+    IN input_contract_id int
+)
+BEGIN
+
+insert into contract_rule (rule_name,rate,start_time,end_time,target_days,contract_id)
+values (input_rule_name,input_rate,input_start_time,input_end_time,input_target_days,input_contract_id);
+
+END //
