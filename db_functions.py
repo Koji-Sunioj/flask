@@ -1,10 +1,11 @@
 import pymysql
 import pandas as pd
 import datetime
+import json
 from geopy.geocoders import Nominatim
 geolocator = Nominatim(user_agent="flask_app_koji")
 
-con = pymysql.connect('localhost', 'root', 'HIDDEN', 'HIDDEN')
+con = pymysql.connect('localhost', 'root', 'Karelia', 'geo_data')
 
 '''repetive functions here'''
 
@@ -116,6 +117,16 @@ def tax_contract_get(username):
 	con.commit()
 	con.close()
 	return rows
+	
+def tax_rules_get(username):
+	select_main = connect() 
+	select_main.callproc('tax_rules_get',(username,))
+	rule_rows = select_main.fetchall()
+	columns =  [i[0] for i in select_main.description]
+	con.commit()
+	con.close()
+	rule_arr = [{column: (json.loads(val) if column == 'target_days' else val) for column,val in zip(columns,row)} for row in rule_rows]
+	return rule_arr
 
 
 def check_inserted_data_v2(year,username,employer):
@@ -163,14 +174,23 @@ def tax_years_get(username):
 	return framer
 '''
 
-def tax_contract_create(username,employer,paydate_month_offset):
+def tax_contract_create(username,employer,paydate_month_offset,base):
 	con.connect()
 	insert_main = con.cursor()
-	insert_main.callproc('tax_contract_create',(username,employer,paydate_month_offset))
+	insert_main.callproc('tax_contract_create',(username,employer,paydate_month_offset,base))
+	contract_id = insert_main.fetchone()[0]
 	con.commit()
 	con.close()
-	success = 'done'
-	return success
+	return contract_id
+	
+	
+def tax_supplement_create(supplement_table):
+	con.connect()
+	insert_main = con.cursor()
+	for rule_name,rate,start_time,end_time,target_days,contract_id in supplement_table.values:
+		insert_main.callproc('tax_supplement_create',(rule_name,rate,start_time,end_time,target_days,contract_id))
+	con.commit()
+	con.close()
 
 '''thread functions'''
 
