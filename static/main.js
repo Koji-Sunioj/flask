@@ -2,6 +2,9 @@
 
 function parse_calendar() 
 {	
+	
+		
+   
 
 	function normalize_modal_contract()
 	{
@@ -28,14 +31,109 @@ function parse_calendar()
 	var yyyy = today.getFullYear();
 	var today =yyyy + '-'+  mm;
 	var this_month = $(`#${yyyy}`).find(`td:contains(${today})`);
-	this_month.parent().css('background-color','#ffffe6').attr('title', 'fetched from Google calendar');
-	this_month.parent().nextAll().prev().css('background-color','#ffffe6').attr('title', 'fetched from Google calendar');
+	this_month.parent().css('color','blue').attr('title', 'fetched from Google calendar');
+	this_month.parent().nextAll().prev().css('color','blue').attr('title', 'fetched from Google calendar');
 
+	var months = [];
+	var test_series = []
 	//create header for each table based on their id
 	$('table.dataframe.table').each(function(){
 		var table_id = $(this).attr('id');
+		table_json = {
+			name: table_id,
+			data: []
+		 }
+		
+		$(this).find('tr:last').css('background-color','#f0e9c7');
+		$(this).find('td:last-child').css('background-color','#f0e9c7');
 		$(this).before(`<h1>${table_id}</h1>`);
+	
+		$(this).find('tr').each(function() {
+			var month = $(this).find('td:first').text();
+			var estimate = $(this).find('td:last').text();
+			if (isNaN(	parseInt(month.substring(5, 7))) )
+			{	
+
+			}
+			else 
+			{
+				table_json.data.push(parseFloat( estimate.substring(1).replace(/,/g, '')) );
+				months.push(month.substring(5, 7));
+			}
+		}) 
+		
+		
+		
+		; 
+		test_series.push(table_json);
 	});
+	
+	var unique = new Set(months);
+	chart= {
+        type: 'column'
+    };
+
+	title = {
+		  text: 'Estimated paychecks'   
+	   };
+   
+	   subtitle= {
+	   text: 'by year, month number'
+	 };
+	
+	 
+	 xAxis = { crosshair: true,
+		categories: Array.from(unique),
+		title: {
+            enabled: true,
+            text: 'month number',
+            style: {
+                fontWeight: 'normal'
+			},
+			
+        }
+	 };
+	  yAxis = {
+		title: {
+		   text: 'Euros \u20AC'
+		},
+		plotLines: [{
+		   value: 0,
+		   width: 1,
+		   color: '#808080'
+		}]
+	 };   
+ 
+	  tooltip = {
+		valuePrefix: '\u20AC '
+	 }
+	  legend = {
+		layout: 'vertical',
+		align: 'left',
+		verticalAlign: 'middle',
+		borderWidth: 1
+	 };
+	
+ 
+	  json = {};
+	 json.title = title;
+	 json.chart = chart;
+	 json.xAxis = xAxis;
+	 json.yAxis = yAxis;
+	 json.tooltip = tooltip;
+	// json.legend = legend;
+	 json.series = test_series.reverse();
+	 json.subtitle = subtitle;
+ 
+	 $('#highchart').highcharts(json);
+	 Highcharts.setOptions({
+	 lang: {
+	   thousandsSep: ','
+   		}, 
+   	chart : {
+		type: 'column'
+		}
+ 		});
 
 
 	$('.btn-close').on('click',function() {
@@ -348,20 +446,7 @@ function parse_calendar()
 
 	});
 
-	$(document).on('click', '#reappend', function() {
-		
-		$.ajax({
-			data : 
-			{	
-				reappend : true
-			},
-			type : 'POST',
-			url : '/tax-year/',
-			success: function(){
-				window.location.href = "/tax-year/";
-			}
-		})
-	});
+	
 /*
 	$(document).on('click', '#create_contract', function() {
 		
