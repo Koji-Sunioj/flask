@@ -19,7 +19,6 @@ def tax_year_header(username,years,contracts):
 	#select values from db based on values in contracts, into one frame
 	tax_years = pd.concat(db_functions.tax_years_get_v2(username,employer['employer']) for employer in contracts)
 	
-	
 	#same but for google calendar
 	tax_years_append = pd.concat(main(pd.to_datetime(datetime.today().strftime('%Y-%m')).isoformat() + 'Z',query=employer['employer']) for employer in contracts)
 	#merge google and db values
@@ -33,16 +32,24 @@ def tax_year_header(username,years,contracts):
 		tax_years.loc[tax_years.title.str.contains(i['employer']),'estimate'] = i['base'] * tax_years.loc[tax_years.title.str.contains(i['employer'])]['total hours']
 	
 	#supplement handling. supplement comes in a list of dictionaries
-	tax_years['start_time_s'] = tax_years['start_time'].dt.round('H').dt.hour
-	tax_years['end_time_s'] = tax_years['end_time'].dt.round('H').dt.hour
-	tax_years.loc[tax_years['end_time_s'] == 0,'end_time_s'] = 24
 	supplement_rules = db_functions.tax_rules_get(username)
+	if supplement_rules:
+		tax_years['start_time_s'] = tax_years['start_time'].dt.round('H').dt.hour
+		tax_years['end_time_s'] = tax_years['end_time'].dt.round('H').dt.hour
+		tax_years.loc[tax_years['end_time_s'] == 0,'end_time_s'] = 24
 	
-	for i in supplement_rules:
-		tax_years.loc[(tax_years.title.str.contains(i['employer']))&(tax_years.index.weekday.isin(i['target_days'])),i['rule_name']] = [sum(np.in1d(np.arange(i['start_time'],i['end_time'],dtype=int),np.arange(val[0],val[1],dtype=int))) for val in tax_years.loc[tax_years.index.weekday.isin(i['target_days'])][['start_time_s','end_time_s']].values]
-		tax_years = tax_years.fillna(0)
-		tax_years['estimate'] = tax_years['estimate'] + tax_years[i['rule_name']].values * i['rate']
-	
+		for i in supplement_rules:
+			tax_years.loc[(tax_years.title.str.contains(i['employer']))&(tax_years.index.weekday.isin(i['target_days'])),i['rule_name']] = [sum(np.in1d(np.arange(i['start_time'],i['end_time'],dtype=int),np.arange(val[0],val[1],dtype=int))) for val in tax_years.loc[(tax_years.title.str.contains(i['employer']))& (tax_years.index.weekday.isin(i['target_days']))][['start_time_s','end_time_s']].values]
+			tax_years = tax_years.fillna(0)
+			tax_years['estimate'] = tax_years['estimate'] + tax_years[i['rule_name']].values * i['rate']
+		
+		print(tax_years.columns)
+		
+		rule_filter = [i['rule_name'] for i in supplement_rules]
+		tax_years['non supplement'] = tax_years['total hours']  -  tax_years[rule_filter].sum(axis=1)
+		print(tax_years[rule_filter].sum(axis=1))
+		rule_filter.append('work days')
+	#weather[weather.columns[~weather.columns.isin(['temp'])]]
 	#reorganzing columns before output
 	reorg = list(tax_years.columns)
 	reorg.remove('estimate')
@@ -54,20 +61,25 @@ def tax_year_header(username,years,contracts):
 	tax_years['post_to'] = tax_years.index + tax_years.offset.astype(int)
 	tax_years = tax_years.drop(columns=['offset','start_time','end_time','title','start_time_s','end_time_s'])
 	
-	#tax_years[[i['rule_name'] for i in supplement_rules]] = tax_years[[i['rule_name'] for i in supplement_rules]].astype(int)
-	
-	#print(tax_years)
-	
 	#get unique values for post years, to generate html classes for the html page
 	year_slicer = np.sort(tax_years.post_to.dt.year.unique())
 	year_slicer.sort()
 	#create an array of frames, seperated by post year (tax year), then group the sums together
 	stuff = [tax_years[tax_years.post_to.dt.year == year] for year in years if not tax_years[tax_years.post_to.dt.year == year].empty]
 	stuff = [stuff[i].groupby(stuff[i].index).sum().round(2) for i in range(0,len(stuff))]
+
+	
+	#cleaning up table, get total row for each year, assign name to index for the page, and signing rule name columns as integer, format estimate as string with decimal and euro sign
+	
+	
+	#any number which is a result of a rule, is parsed as integer since the hour checking is in hour increments
 	for i in stuff:
 		i.loc['total'] = i.sum()
 		i.index.name = 'work month'
-	print(stuff)
+		#i['normal'] = i['total hours'] - i[rule_filter].sum(axis=1) 
+		i[rule_filter] = i[rule_filter].astype(int)
+		i['estimate'] = i['estimate'].apply(lambda x: "€{:,.2f}".format(x))
+	
 	tax_years_frame = [frame.reset_index().to_html(classes='table',table_id=year, header=True,index=False) for year,frame in zip(year_slicer,stuff)]
 	tax_years_frame.reverse()
 	
